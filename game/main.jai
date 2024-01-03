@@ -4,7 +4,6 @@ Simp :: #import "Simp";
 #import "System";
 #import "Window_Creation";
 
-
 main :: () {
   window_width  : s32 = 800;
   window_height : s32 = 600;
@@ -13,6 +12,9 @@ main :: () {
 
   win := create_window(window_width, window_height, "ssg");   // (1)
   Simp.set_render_target(win);
+  if win {
+    print("Window creation successful!");
+  }
   quit := false;
   while !quit {
     update_window_events();

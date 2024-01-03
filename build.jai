@@ -16,6 +16,7 @@ build :: () {
     target_options.output_path = "./.build";
     set_build_options(target_options, w);
     add_build_file(tprint("game/main.jai"), w);
+    add_build_file(tprint("engine/sMath.jai"), w);
     set_build_options_dc(.{do_output=false});
 }
 main :: () {}
