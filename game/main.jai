@@ -5,10 +5,19 @@ Simp :: #import "Simp";
 #import "Window_Creation";
 #import "../engine";
 
+window : gWin;
+
 main :: () {
+  grend_init();
+
   win_dim : gVec2 = .{800,600};
   rend_dim : gVec2 = .{800,600};
 
+  window = gwin_create(win_dim.x, win_dim.y, GWIN_OPT.NONE); 
+
+  gwin_cleanup(*window);
+
+/*
   win := create_window(win_dim.x, win_dim.y, "ssg");   // (1)
   Simp.set_render_target(win);
   if win {
@@ -37,4 +46,5 @@ main :: () {
     Simp.swap_buffers(win);
     reset_temporary_storage();
   }
+*/
 }

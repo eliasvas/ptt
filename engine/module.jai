@@ -1,5 +1,5 @@
 //Simp :: #import "Simp";
 #load "gmath.jai";
+#load "grend.jai";
 //#scope_module
-//#load "rend.jai"
-//#load "ui.jai"
+//#load "gui.jai"
