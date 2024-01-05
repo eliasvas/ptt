@@ -3,14 +3,13 @@
 Simp :: #import "Simp";
 #import "System";
 #import "Window_Creation";
+#import "../engine";
 
 main :: () {
-  window_width  : s32 = 800;
-  window_height : s32 = 600;
-  render_width  : s32 = 800;
-  render_height : s32 = 600;
+  win_dim : gVec2 = .{800,600};
+  rend_dim : gVec2 = .{800,600};
 
-  win := create_window(window_width, window_height, "ssg");   // (1)
+  win := create_window(win_dim.x, win_dim.y, "ssg");   // (1)
   Simp.set_render_target(win);
   if win {
     print("Window creation successful!");
@@ -20,10 +19,10 @@ main :: () {
     update_window_events();
     for get_window_resizes() {
         if it.window == win {
-            window_width  = it.width;
-            window_height = it.height;
-            render_width  = window_width;
-            render_height = window_height;
+            win_dim.x  = it.width;
+            win_dim.y  = it.height;
+            rend_dim.x = win_dim.x;
+            rend_dim.y = win_dim.y;
             Simp.update_window(win);
         }
     }

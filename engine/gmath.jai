@@ -4,25 +4,25 @@
 
 
 //this should be a union achyually
-sVec2 :: struct {
+gVec2 :: struct {
     x : s32;
     y : s32;
 }
 
-svec2_add :: (a : sVec2, b : sVec2) -> sVec2 {
+gvec2_add :: (a : gVec2, b : gVec2) -> gVec2 {
     return .{a.x + b.x, a.y + b.y};
 }
 
-svec2_sub :: (a : sVec2, b : sVec2) -> sVec2 {
+gvec2_sub :: (a : gVec2, b : gVec2) -> gVec2 {
     return .{a.x - b.x, a.y - b.y};
 }
 
-svec2_mult :: (a : sVec2, b : sVec2) -> sVec2 {
+gvec2_mult :: (a : gVec2, b : gVec2) -> gVec2 {
     return .{a.x * b.x, a.y * b.y};
 }
 
 //@TODO: An error could be returned here? MRT?
-svec2_div :: (a : sVec2, b : sVec2) -> sVec2 {
+gvec2_div :: (a : gVec2, b : gVec2) -> gVec2 {
     assert(b.x != 0);
     assert(b.y != 0);
     return .{a.x / b.x, a.y / b.y};
