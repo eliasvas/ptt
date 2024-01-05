@@ -9,12 +9,10 @@ window : gWin;
 
 main :: () {
   ges_init();
-  grend_init();
-
   win_dim : gVec2 = .{800,600};
   rend_dim : gVec2 = .{800,600};
-
   window = gwin_create(win_dim.x, win_dim.y, GWIN_OPT.NONE); 
+  grend_init(); //@TODO: maybe pass window here??
 
   while !ges.exit{
     ges_update();
