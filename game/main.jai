@@ -18,6 +18,7 @@ main :: () {
 
   while !ges.exit{
     ges_update();
+    gwin_update(*window);
   }
 
   gwin_cleanup(*window);

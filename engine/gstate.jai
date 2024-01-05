@@ -28,7 +28,6 @@ ges_update :: () {
                 if event.key.keysym.sym == SDLK_ESCAPE  ges.exit = true;
         }
     }
-
     now := get_time();
     ges.dt = (now - ges.prev_frame_time) * 1000; 
     ges.prev_frame_time = now;

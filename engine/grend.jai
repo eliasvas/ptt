@@ -26,8 +26,20 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
 
     if win.window == null {
         print("Could not create window: %\n", to_string(SDL_GetError()));
+    }else {
+        //Should this be saved somewhere??
+        gl_context : SDL_GLContext = SDL_GL_CreateContext(win.window);
     }
     return win;
+}
+
+gwin_update :: (win : *gWin) {
+    dt := ges.dt;
+    glViewport(0, 0, xx win.dim.x, xx win.dim.y);
+    glClearColor(1.0, 0.3, 0.4, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    SDL_GL_SwapWindow(win.window);
 }
 
 gwin_cleanup :: (win : *gWin){
