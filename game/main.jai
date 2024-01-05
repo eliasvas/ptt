@@ -8,12 +8,17 @@ Simp :: #import "Simp";
 window : gWin;
 
 main :: () {
+  ges_init();
   grend_init();
 
   win_dim : gVec2 = .{800,600};
   rend_dim : gVec2 = .{800,600};
 
   window = gwin_create(win_dim.x, win_dim.y, GWIN_OPT.NONE); 
+
+  while !ges.exit{
+    ges_update();
+  }
 
   gwin_cleanup(*window);
 

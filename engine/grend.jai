@@ -27,8 +27,6 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
     if win.window == null {
         print("Could not create window: %\n", to_string(SDL_GetError()));
     }
-    SDL_Delay(3000);
-
     return win;
 }
 
