@@ -1,6 +1,7 @@
 #import "Basic";
 #import "Input";
 #import "System";
+#import "Math";
 #import "GL";
 #import "SDL";
 
@@ -118,6 +119,7 @@ gwin_update :: (win : *gWin) {
 
     glUseProgram(shader_program);
     glBindVertexArray(grend_ctx.vao);
+    glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx sin(10.0 * get_time()));
     glDrawElements(GL_TRIANGLES, 6,GL_UNSIGNED_INT, xx 0);
 
     SDL_GL_SwapWindow(win.window);
@@ -129,10 +131,10 @@ gwin_cleanup :: (win : *gWin){
 }
 
 vertices :: float.[
-     0.5,  0.5, 0.0,  // top right
-     0.5, -0.5, 0.0,  // bottom right
-    -0.5, -0.5, 0.0,  // bottom left
-    -0.5,  0.5, 0.0   // top left 
+     0.5,  0.5, 0.0, 1.0,0.0,0.0,1.0,// top right
+     0.5, -0.5, 0.0, 0.0,1.0,0.0,1.0,// bottom right
+    -0.5, -0.5, 0.0, 0.0,0.0,1.0,1.0,// bottom left
+    -0.5,  0.5, 0.0, 1.0,1.0,1.0,1.0 // top left 
 ];
 indices :: u32.[
     0, 1, 3,
@@ -142,9 +144,13 @@ indices :: u32.[
 vertex_shader_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec4 aCol;
+
+out vec4 col;
 
 void main()
 {
+    col = aCol;
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
 }
 END;
@@ -153,10 +159,12 @@ END;
 fragment_shader_source :: #string END
 #version 330 core
 out vec4 FragColor;
+in vec4 col;
+uniform float col_mod;
 
 void main()
 {
-    FragColor = vec4(0.9f, 0.4f, 0.3f, 1.0f);
+    FragColor = vec4(0.9f, 0.4f, 0.3f, 1.0f) * col * col_mod;
 }
 END
 shader_program : u32;
@@ -173,15 +181,17 @@ grend_init :: () {
     glGenBuffers(1, *vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
-    ebo : GLuint;
-    glGenBuffers(1, *ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    ibo : GLuint;
+    glGenBuffers(1, *ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.count * size_of(float),indices.data, GL_STATIC_DRAW);
 
     shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo); //just in case
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * size_of(float), xx 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * size_of(float), xx 0);
     glEnableVertexAttribArray(0);  
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * size_of(float), xx (3 * size_of(float)));
+    glEnableVertexAttribArray(1);
 }
 
