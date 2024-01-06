@@ -22,46 +22,43 @@ GWIN_OPT :: enum {
     RESIZABLE;
 }
 
-gcheck_gl_shader_link_errors :: (shader_program_id : GLuint) -> bool {
-    success : s32;
-    glGetProgramiv (shader_program_id, GL_LINK_STATUS, *success);
-    if !success
-    {
-        info_len : s32;
-        glGetProgramiv (shader_program_id, GL_INFO_LOG_LENGTH, *info_len);
-        info_data := cast (*u8) alloc (info_len, temp);
-        defer free(info_data);
-        glGetProgramInfoLog (shader_program_id, xx info_len, xx *info_len, info_data);
-        result : string;
-        result.data = info_data;
-        result.count = info_len;
-        print("Shader link error: %\n", result);
-    }
 
-    return (success == 0);
-}
-
-
-gcheck_gl_shader_compile_errors :: (shader_id : GLuint) -> bool {
-    success : s32;
-    glGetShaderiv (shader_id, GL_COMPILE_STATUS, *success);
-    if !success
-    {
-        info_len : s32;
-        glGetShaderiv (shader_id, GL_INFO_LOG_LENGTH, *info_len);
-        info_data := cast (*u8) alloc (info_len, temp);
-        defer free(info_data);
-        glGetShaderInfoLog (shader_id, xx info_len, xx *info_len, info_data);
-        result : string;
-        result.data = info_data;
-        result.count = info_len;
-        print("Shader compilation error: %\n", result);
-    }
-
-    return (success == 0);
-}
 
 gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
+    gcheck_gl_shader_link_errors :: (shader_program_id : GLuint) -> bool {
+        success : s32;
+        glGetProgramiv (shader_program_id, GL_LINK_STATUS, *success);
+        if !success
+        {
+            info_len : s32;
+            glGetProgramiv (shader_program_id, GL_INFO_LOG_LENGTH, *info_len);
+            info_data := cast (*u8) alloc (info_len, temp);
+            defer free(info_data);
+            glGetProgramInfoLog (shader_program_id, xx info_len, xx *info_len, info_data);
+            result : string;
+            result.data = info_data;
+            result.count = info_len;
+            print("Shader link error: %\n", result);
+        }
+        return (success == 0);
+    }
+    gcheck_gl_shader_compile_errors :: (shader_id : GLuint) -> bool {
+        success : s32;
+        glGetShaderiv (shader_id, GL_COMPILE_STATUS, *success);
+        if !success
+        {
+            info_len : s32;
+            glGetShaderiv (shader_id, GL_INFO_LOG_LENGTH, *info_len);
+            info_data := cast (*u8) alloc (info_len, temp);
+            defer free(info_data);
+            glGetShaderInfoLog (shader_id, xx info_len, xx *info_len, info_data);
+            result : string;
+            result.data = info_data;
+            result.count = info_len;
+            print("Shader compilation error: %\n", result);
+        }
+        return (success == 0);
+    }
     sp : GLuint;
 
     vs : GLuint;
