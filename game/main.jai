@@ -1,9 +1,20 @@
 #import "Basic";
 #import "Input";
-Simp :: #import "Simp";
 #import "System";
 #import "Window_Creation";
 #import "../engine";
+
+//As a BASELINE game, we could start with a 2d roguelite with
+//a lot of procgen stuff, and for sure make it 3d with skeletal
+//animation, custom proc weapons? and stuff (physics?) and go from there!
+//we can turn it into a silly game anytime tho
+//the UI is VERY important and should be made FIRST!!(so immediate-style 2d renderer first!)
+
+
+//Preliminary Plan:
+//0.) Basic 2d rendering abstraction
+//1.) UI Basics
+//2.) VERY simple roguelite base 
 
 window : gWin;
 

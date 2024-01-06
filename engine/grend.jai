@@ -4,6 +4,11 @@
 #import "GL";
 #import "SDL";
 
+gRendContext :: struct {
+    vao : GLuint;
+    //+ a command buffer?!
+}
+grend_ctx: gRendContext; //should we look this up or something? is this internal ONLY to the renderer??
 
 gWin :: struct {
     dim : gVec2;
@@ -16,6 +21,72 @@ GWIN_OPT :: enum {
     VISIBLE;
     RESIZABLE;
 }
+
+gcheck_gl_shader_link_errors :: (shader_program_id : GLuint) -> bool {
+    success : s32;
+    glGetProgramiv (shader_program_id, GL_LINK_STATUS, *success);
+    if !success
+    {
+        info_len : s32;
+        glGetProgramiv (shader_program_id, GL_INFO_LOG_LENGTH, *info_len);
+        info_data := cast (*u8) alloc (info_len, temp);
+        defer free(info_data);
+        glGetProgramInfoLog (shader_program_id, xx info_len, xx *info_len, info_data);
+        result : string;
+        result.data = info_data;
+        result.count = info_len;
+        print("Shader link error: %\n", result);
+    }
+
+    return (success == 0);
+}
+
+
+gcheck_gl_shader_compile_errors :: (shader_id : GLuint) -> bool {
+    success : s32;
+    glGetShaderiv (shader_id, GL_COMPILE_STATUS, *success);
+    if !success
+    {
+        info_len : s32;
+        glGetShaderiv (shader_id, GL_INFO_LOG_LENGTH, *info_len);
+        info_data := cast (*u8) alloc (info_len, temp);
+        defer free(info_data);
+        glGetShaderInfoLog (shader_id, xx info_len, xx *info_len, info_data);
+        result : string;
+        result.data = info_data;
+        result.count = info_len;
+        print("Shader compilation error: %\n", result);
+    }
+
+    return (success == 0);
+}
+
+gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
+    sp : GLuint;
+
+    vs : GLuint;
+    vs = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vs, 1, *vs_source.data, null);
+    glCompileShader(vs);
+    defer glDeleteShader(vs);
+    if gcheck_gl_shader_compile_errors(vs) then return sp, false;
+
+    fs : GLuint;
+    fs = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fs, 1, *fs_source.data, null);
+    glCompileShader(fs);
+    defer glDeleteShader(fs);
+    if gcheck_gl_shader_compile_errors(fs) then return sp, false;
+
+    sp = glCreateProgram();
+    glAttachShader(sp, vs);
+    glAttachShader(sp, fs);
+    glLinkProgram(sp);
+    if gcheck_gl_shader_link_errors(sp) then return sp, false;
+
+    return sp, true;
+}
+
 
 gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
     win : gWin = .{.{ww, wh}, opt, null};
@@ -49,8 +120,8 @@ gwin_update :: (win : *gWin) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(shader_program);
-    glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(grend_ctx.vao);
+    glDrawElements(GL_TRIANGLES, 6,GL_UNSIGNED_INT, xx 0);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -60,7 +131,16 @@ gwin_cleanup :: (win : *gWin){
     memset(win, 0, size_of(gWin));
 }
 
-vertices :: float.[ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 ];
+vertices :: float.[
+     0.5,  0.5, 0.0,  // top right
+     0.5, -0.5, 0.0,  // bottom right
+    -0.5, -0.5, 0.0,  // bottom left
+    -0.5,  0.5, 0.0   // top left 
+];
+indices :: u32.[
+    0, 1, 3,
+    1, 2, 3
+]; 
 
 vertex_shader_source :: #string END
 #version 330 core
@@ -79,60 +159,32 @@ out vec4 FragColor;
 
 void main()
 {
-    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    FragColor = vec4(0.9f, 0.4f, 0.3f, 1.0f);
 }
 END
-
-vao : u32;
 shader_program : u32;
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
 
-    vbo : u32;
+    //should there be like, a reset vao so we can re-use
+    //the same vao for ALL rendering?
+    glGenVertexArrays(1, *grend_ctx.vao);
+    glBindVertexArray(grend_ctx.vao);
+    
+
+    vbo : GLuint;
     glGenBuffers(1, *vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    //assert(*vertices != null);
-    glBufferData(GL_ARRAY_BUFFER, size_of(float) * 9, *vertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
+    ebo : GLuint;
+    glGenBuffers(1, *ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.count * size_of(float),indices.data, GL_STATIC_DRAW);
 
-    vs_cstr := to_c_string(vertex_shader_source);
-    defer free(vs_cstr);
-    vs : u32;
-    vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, *vs_cstr, null);
-    glCompileShader(vs);
-    defer glDeleteShader(vs);
+    shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
 
-    fs_cstr := to_c_string(fragment_shader_source);
-    defer free(fs_cstr);
-    fs : u32;
-    fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, *fs_cstr, null);
-    glCompileShader(fs);
-    defer glDeleteShader(fs);
-
-    //shader_program : u32;
-    shader_program = glCreateProgram();
-    glAttachShader(shader_program, vs);
-    glAttachShader(shader_program, fs);
-    glLinkProgram(shader_program);
-
+    glBindBuffer(GL_ARRAY_BUFFER, vbo); //just in case
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * size_of(float), xx 0);
     glEnableVertexAttribArray(0);  
-
-    //vao : u32;
-    glGenVertexArrays(1, *vao);
-
-    // 1. bind Vertex Array Object
-    glBindVertexArray(vao);
-    // 2. copy our vertices array in a buffer for OpenGL to use
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, size_of(float)*9, *vertices[0], GL_STATIC_DRAW);
-    // 3. then set our vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * size_of(float),xx 0);
-    glEnableVertexAttribArray(0);
-
-    glUseProgram(shader_program);
-    glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
