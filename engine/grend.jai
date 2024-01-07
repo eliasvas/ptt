@@ -12,7 +12,7 @@ gRendContext :: struct {
 grend_ctx: gRendContext; //should we look this up or something? is this internal ONLY to the renderer??
 
 gWin :: struct {
-    dim : gVec2;
+    dim : Vector2;
     opt : GWIN_OPT;
     window : *SDL_Window;
 }
@@ -28,7 +28,7 @@ GWIN_OPT :: enum {
 gTextureData :: struct {
     data : *u8;
     cnum : u32; //3 or 4
-    dim : gVec2;
+    dim : Vector2;
 }
 
 generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u32, cnum : u32) -> gTextureData {
@@ -120,11 +120,11 @@ gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
 
 
 gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
-    win : gWin = .{.{ww, wh}, opt, null};
+    win : gWin = .{.{xx ww, xx wh}, opt, null};
 
     
     win.window = SDL_CreateWindow("Window",
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, win.dim.x, win.dim.y,
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xx win.dim.x, xx win.dim.y,
         SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
 
     if win.window == null {
@@ -243,7 +243,7 @@ grend_init :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    tex = generate_debug_texture(400, 400, 3, 4, 4);
+    tex = generate_debug_texture(400, 400, 30, 30, 4);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
     
