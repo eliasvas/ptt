@@ -24,6 +24,39 @@ GWIN_OPT :: enum {
 }
 
 
+//YOU must free the data!
+gTextureData :: struct {
+    data : *u8;
+    cnum : u32; //3 or 4
+    dim : gVec2;
+}
+
+generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u32, cnum : u32) -> gTextureData {
+    assert(x_tiles > 0);
+    assert(y_tiles > 0);
+    tex_data : gTextureData;
+    tex_data.data = cast (*u8) alloc (width * height * size_of(u8) * cnum, temp);
+    tex_data.dim = .{xx width, xx height};
+    tex_data.cnum = cnum;
+    for pix : 0..width*height+1 {
+        pixel_x : u32 = (pix % width);
+        pixel_y : u32 = (pix / width);
+        pixel_index : u32 = ( pixel_x + pixel_y * width ) * cnum;
+
+        xtile_white : bool = pixel_x / (width / x_tiles) % 2 == 0;
+        ytile_white : bool = (height-pixel_y) / (height / y_tiles) % 2 == 0;
+
+        color := ifx xtile_white ^ ytile_white then 255 else 0;
+        tex_data.data[pixel_index + 0] = xx color;
+        tex_data.data[pixel_index + 1] = xx color;
+        tex_data.data[pixel_index + 2] = xx color;
+        if cnum == 4{
+            tex_data.data[pixel_index + 3] = 255;
+        }
+
+    }
+    return tex_data;
+}
 
 gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
     gcheck_gl_shader_link_errors :: (shader_program_id : GLuint) -> bool {
@@ -119,7 +152,8 @@ gwin_update :: (win : *gWin) {
 
     glUseProgram(shader_program);
     glBindVertexArray(grend_ctx.vao);
-    glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx sin(10.0 * get_time()));
+    glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
+    glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(4.0 * get_time())));
     glDrawElements(GL_TRIANGLES, 6,GL_UNSIGNED_INT, xx 0);
 
     SDL_GL_SwapWindow(win.window);
@@ -131,10 +165,10 @@ gwin_cleanup :: (win : *gWin){
 }
 
 vertices :: float.[
-     0.5,  0.5, 0.0, 1.0,0.0,0.0,1.0,// top right
-     0.5, -0.5, 0.0, 0.0,1.0,0.0,1.0,// bottom right
-    -0.5, -0.5, 0.0, 0.0,0.0,1.0,1.0,// bottom left
-    -0.5,  0.5, 0.0, 1.0,1.0,1.0,1.0 // top left 
+     0.5,  0.5, 0.0, 1.0,0.0,0.0,1.0, 1.0,1.0,// top right
+     0.5, -0.5, 0.0, 0.0,1.0,0.0,1.0, 1.0,0.0,// bottom right
+    -0.5, -0.5, 0.0, 0.0,0.0,1.0,1.0, 0.0,0.0,// bottom left
+    -0.5,  0.5, 0.0, 1.0,1.0,1.0,1.0, 0.0,1.0// top left 
 ];
 indices :: u32.[
     0, 1, 3,
@@ -145,12 +179,15 @@ vertex_shader_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec4 aCol;
+layout (location = 2) in vec2 aTexCoord;
 
 out vec4 col;
+out vec2 tc;
 
 void main()
 {
     col = aCol;
+    tc = aTexCoord;
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
 }
 END;
@@ -160,14 +197,18 @@ fragment_shader_source :: #string END
 #version 330 core
 out vec4 FragColor;
 in vec4 col;
+in vec2 tc;
 uniform float col_mod;
+uniform sampler2D tex;
 
 void main()
 {
-    FragColor = vec4(0.9f, 0.4f, 0.3f, 1.0f) * col * col_mod;
+    FragColor = texture(tex, tc) * col * col_mod;
 }
 END
-shader_program : u32;
+shader_program : GLuint;
+tex : gTextureData;
+debug_tex : GLuint;
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -189,9 +230,24 @@ grend_init :: () {
     shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo); //just in case
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * size_of(float), xx 0);
-    glEnableVertexAttribArray(0);  
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * size_of(float), xx (3 * size_of(float)));
-    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * size_of(float), xx 0);
+    glEnableVertexAttribArray(0);   
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 9 * size_of(float), xx (3 * size_of(float)));
+    glEnableVertexAttribArray(1); 
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * size_of(float), xx (7 * size_of(float)));
+    glEnableVertexAttribArray(2);
+
+    glGenTextures(1, *debug_tex);
+    glBindTexture(GL_TEXTURE_2D, debug_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    tex = generate_debug_texture(400, 400, 3, 4, 4);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    
+    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
+    glBindTexture(GL_TEXTURE_2D, debug_tex);
 }
 
