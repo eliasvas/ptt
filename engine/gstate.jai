@@ -7,6 +7,7 @@ gEngineGlobalState :: struct {
     exit : bool = false;
     dt : float64;
     prev_frame_time : float64;
+    window_resized : bool;
     //array of events gathered from SDL equivalents??
 }
 
@@ -18,6 +19,7 @@ ges_init :: () {
 }
 
 ges_update :: () {
+    ges.window_resized = false;
     SDL_Delay(1);//ms to delay update
     event : SDL_Event;
     while SDL_PollEvent(*event) {
@@ -26,6 +28,12 @@ ges_update :: () {
                 ges.exit = true;
             case SDL_KEYUP;
                 if event.key.keysym.sym == SDLK_ESCAPE  ges.exit = true;
+            case SDL_WINDOWEVENT;
+                if event.window.event == SDL_WINDOWEVENT_RESIZED{
+                    //print("Window resize detected, new res: [%,%]\n", window.width, window.height );
+                    //SDL_GetWindowSize(window,&width,&height);
+                    ges.window_resized = true;
+                }
         }
     }
     now := get_time();

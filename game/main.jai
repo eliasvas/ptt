@@ -24,7 +24,7 @@ main :: () {
   win_dim : Vector2 = .{800,600};
   rend_dim : Vector2 = .{800,600};
   window = gwin_create(xx win_dim.x, xx win_dim.y, GWIN_OPT.NONE); 
-  grend_init(); //@TODO: maybe pass window here??
+  grend_init(); //TODO: maybe pass window here?? (yes)
 
   while !ges.exit{
     ges_update();

@@ -4,13 +4,17 @@
 #import "Math";
 #import "GL";
 #import "SDL";
+//#import "gmesh.jai"
+verts := #run generate_mesh(1,10,10);
 
+//TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
     vao : GLuint;
     //+ a command buffer?!
 }
-grend_ctx: gRendContext; //should we look this up or something? is this internal ONLY to the renderer??
 
+//NOTE: Should this be called render DEVICE instead of Context?
+grend_ctx: gRendContext;
 gWin :: struct {
     dim : Vector2;
     opt : GWIN_OPT;
@@ -24,7 +28,7 @@ GWIN_OPT :: enum {
 }
 
 
-//YOU must free the data!
+//NOTE: YOU must free the data!
 gTextureData :: struct {
     data : *u8;
     cnum : u32; //3 or 4
@@ -62,8 +66,7 @@ gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
     gcheck_gl_shader_link_errors :: (shader_program_id : GLuint) -> bool {
         success : s32;
         glGetProgramiv (shader_program_id, GL_LINK_STATUS, *success);
-        if !success
-        {
+        if !success {
             info_len : s32;
             glGetProgramiv (shader_program_id, GL_INFO_LOG_LENGTH, *info_len);
             info_data := cast (*u8) alloc (info_len, temp);
@@ -79,8 +82,7 @@ gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
     gcheck_gl_shader_compile_errors :: (shader_id : GLuint) -> bool {
         success : s32;
         glGetShaderiv (shader_id, GL_COMPILE_STATUS, *success);
-        if !success
-        {
+        if !success {
             info_len : s32;
             glGetShaderiv (shader_id, GL_INFO_LOG_LENGTH, *info_len);
             info_data := cast (*u8) alloc (info_len, temp);
@@ -145,16 +147,43 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
   
 
 gwin_update :: (win : *gWin) {
+    gwin_resize_if_necessary :: (win : *gWin) {
+        if ges.window_resized {
+            ww : s32;
+            wh : s32;
+            SDL_GetWindowSize(win.window,*ww,*wh);
+            win.dim.x = xx ww;
+            win.dim.y = xx wh;
+            print("New window size: [%,%]\n", win.dim.x, win.dim.y);
+        }
+    }
+    gwin_resize_if_necessary(win);
     dt := ges.dt;
     glViewport(0, 0, xx win.dim.x, xx win.dim.y);
     glClearColor(0.4, 0.4, 0.4, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(shader_program);
     glBindVertexArray(grend_ctx.vao);
+    identity : Matrix4 = Matrix4_Identity;
+    aspect := 800.0 / 600.0;
+    //model_mat := Matrix4_Identity;
+    position := Vector3.{0,0,2};
+    rotation := Vector3.{0,xx(100 * abs(sin(get_time())) * (PI/180.0)),0};
+    rot_quat : Quaternion;
+    set_from_axis_and_angle (*rot_quat, -1, 0, 0, rotation.y);
+    model_mat := Matrix4_Identity;//make_translation_matrix4 (position) * rotation_matrix (Matrix4, rot_quat);
+    view_mat := make_look_at_matrix(.{0, 0, -2}, .{0, 0, 0}, .{0, 1, 0}, false);
+    //proj_mat := make_projection_matrix(45.0 * PI / 180.0, aspect, 0.1, 100.0);
+    //proj_mat := make_frustum_matrix(-10, 10, -10, 10, 0.1, 100);
+    ortho_mat := orthographic_projection_matrix(-10, 10, -10, 10, 0.1, 40);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
     glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
     glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(4.0 * get_time())));
-    glDrawElements(GL_TRIANGLES, 6,GL_UNSIGNED_INT, xx 0);
+    //glDrawElements(GL_TRIANGLES, 6,GL_UNSIGNED_INT, xx 0);
+    glDrawArrays(GL_TRIANGLES, 0, verts.count);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -178,17 +207,21 @@ indices :: u32.[
 vertex_shader_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec4 aCol;
 layout (location = 2) in vec2 aTexCoord;
+layout (location = 1) in vec3 aNorm;
 
 out vec4 col;
 out vec2 tc;
 
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 proj;
+
 void main()
 {
-    col = aCol;
     tc = aTexCoord;
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    gl_Position = proj * view * model * vec4(aPos, 1.0);
 }
 END;
 
@@ -196,14 +229,13 @@ END;
 fragment_shader_source :: #string END
 #version 330 core
 out vec4 FragColor;
-in vec4 col;
 in vec2 tc;
 uniform float col_mod;
 uniform sampler2D tex;
 
 void main()
 {
-    FragColor = texture(tex, tc) * col * col_mod;
+    FragColor = texture(tex, tc) * col_mod;
 }
 END
 shader_program : GLuint;
@@ -211,6 +243,7 @@ tex : gTextureData;
 debug_tex : GLuint;
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
+    glEnable(GL_DEPTH_TEST);
 
     //should there be like, a reset vao so we can re-use
     //the same vao for ALL rendering?
@@ -221,20 +254,20 @@ grend_init :: () {
     vbo : GLuint;
     glGenBuffers(1, *vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verts.count * size_of(float) * 8,verts.data, GL_STATIC_DRAW);
     ibo : GLuint;
     glGenBuffers(1, *ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.count * size_of(float),indices.data, GL_STATIC_DRAW);
 
     shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo); //just in case
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * size_of(float), xx 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * size_of(float), xx 0);
     glEnableVertexAttribArray(0);   
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 9 * size_of(float), xx (3 * size_of(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * size_of(float), xx (3 * size_of(float)));
     glEnableVertexAttribArray(1); 
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * size_of(float), xx (7 * size_of(float)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * size_of(float), xx (5 * size_of(float)));
     glEnableVertexAttribArray(2);
 
     glGenTextures(1, *debug_tex);
@@ -244,6 +277,8 @@ grend_init :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     tex = generate_debug_texture(400, 400, 30, 30, 4);
+    //the texture data is in GPU memory via glTexImage2D, we can free after
+    defer free(tex.data);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
     
