@@ -5,20 +5,20 @@
 #import "GL";
 #import "SDL";
 
-Vertex :: struct {
+gVertex :: struct {
     pos : Vector3;
     tex_coord : Vector2;
     norm : Vector3;
 }
 
-make_vertex :: () -> Vertex {
-    v : Vertex;
+make_vertex :: () -> gVertex {
+    v : gVertex;
     return v;
 }
 
 //Generates a simple sphere mesh
 //for reference: songho.ca/opengl/gl_sphere.html#example_sphere/
-generate_mesh :: (radius : float = 1.0, sector_count : int = 8, stack_count : int = 8) -> [..] Vertex {
+generate_mesh :: (radius : float = 1.0, sector_count : int = 8, stack_count : int = 8) -> [..] gVertex {
   vertices : [..] Vector3;
   normals : [..] Vector3;
   tex_coords : [..] Vector2;
@@ -80,7 +80,7 @@ generate_mesh :: (radius : float = 1.0, sector_count : int = 8, stack_count : in
   }
 
 
-  sphere : [..] Vertex;
+  sphere : [..] gVertex;
   for i : indices {
     array_add(*sphere, .{ vertices[i], tex_coords[i], normals[i]});
   }

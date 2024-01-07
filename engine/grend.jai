@@ -5,7 +5,7 @@
 #import "GL";
 #import "SDL";
 //#import "gmesh.jai"
-verts := #run generate_mesh(1,10,10);
+verts := #run generate_mesh(1,30,30);
 
 //TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
@@ -167,16 +167,11 @@ gwin_update :: (win : *gWin) {
     glBindVertexArray(grend_ctx.vao);
     identity : Matrix4 = Matrix4_Identity;
     aspect := 800.0 / 600.0;
-    //model_mat := Matrix4_Identity;
-    position := Vector3.{0,0,2};
-    rotation := Vector3.{0,xx(100 * abs(sin(get_time())) * (PI/180.0)),0};
-    rot_quat : Quaternion;
-    set_from_axis_and_angle (*rot_quat, -1, 0, 0, rotation.y);
     model_mat := Matrix4_Identity;//make_translation_matrix4 (position) * rotation_matrix (Matrix4, rot_quat);
-    view_mat := make_look_at_matrix(.{0, 0, -2}, .{0, 0, 0}, .{0, 1, 0}, false);
+    view_mat := Matrix4_Identity;//make_look_at_matrix(.{0, 0, -2}, .{0, 0, 0}, .{0, 1, 0}, false);
     //proj_mat := make_projection_matrix(45.0 * PI / 180.0, aspect, 0.1, 100.0);
     //proj_mat := make_frustum_matrix(-10, 10, -10, 10, 0.1, 100);
-    ortho_mat := orthographic_projection_matrix(-10, 10, -10, 10, 0.1, 40);
+    ortho_mat := Matrix4_Identity;//orthographic_projection_matrix(-10, 10, -10, 10, 0.1, 40);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
@@ -219,6 +214,7 @@ uniform mat4 proj;
 
 void main()
 {
+    col = vec4(aNorm,1.0);
     tc = aTexCoord;
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
     gl_Position = proj * view * model * vec4(aPos, 1.0);
@@ -233,9 +229,11 @@ in vec2 tc;
 uniform float col_mod;
 uniform sampler2D tex;
 
+in vec4 col;
+
 void main()
 {
-    FragColor = texture(tex, tc) * col_mod;
+    FragColor = texture(tex, tc) * col * col_mod;
 }
 END
 shader_program : GLuint;
@@ -254,7 +252,7 @@ grend_init :: () {
     vbo : GLuint;
     glGenBuffers(1, *vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, verts.count * size_of(float) * 8,verts.data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verts.count * size_of(gVertex),verts.data, GL_STATIC_DRAW);
     ibo : GLuint;
     glGenBuffers(1, *ibo);
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
@@ -276,7 +274,7 @@ grend_init :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    tex = generate_debug_texture(400, 400, 30, 30, 4);
+    tex = generate_debug_texture(400, 400, 4, 4, 4);
     //the texture data is in GPU memory via glTexImage2D, we can free after
     defer free(tex.data);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);
