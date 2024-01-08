@@ -4,7 +4,7 @@
 #import "Math";
 #import "GL";
 #import "SDL";
-//#import "gmesh.jai"
+
 verts := #run generate_mesh(1,30,30);
 
 //TODO: generate a sphere, like the texture, also use together?!
@@ -171,7 +171,7 @@ gwin_update :: (win : *gWin) {
     view_mat := Matrix4_Identity;//make_look_at_matrix(.{0, 0, -2}, .{0, 0, 0}, .{0, 1, 0}, false);
     //proj_mat := make_projection_matrix(45.0 * PI / 180.0, aspect, 0.1, 100.0);
     //proj_mat := make_frustum_matrix(-10, 10, -10, 10, 0.1, 100);
-    ortho_mat := Matrix4_Identity;//orthographic_projection_matrix(-10, 10, -10, 10, 0.1, 40);
+    ortho_mat := make_ortho_matrix(-5,5,-5,5,-5,5);//Matrix4_Identity;//orthographic_projection_matrix(-10, 10, -10, 10, 0.1, 40);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
