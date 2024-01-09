@@ -5,7 +5,7 @@
 #import "GL";
 #import "SDL";
 
-verts := #run generate_mesh(1,40,40);
+sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 
 //TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
@@ -177,8 +177,8 @@ gwin_update :: (win : *gWin) {
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
     glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
     glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(4.0 * get_time())));
-    //glDrawElements(GL_TRIANGLES, 6,GL_UNSIGNED_INT, xx 0);
-    glDrawArrays(GL_TRIANGLES, 0, verts.count);
+    glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
+    //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -252,11 +252,11 @@ grend_init :: () {
     vbo : GLuint;
     glGenBuffers(1, *vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, verts.count * size_of(gVertex),verts.data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sphere_verts.count * size_of(gVertex),sphere_verts.data, GL_STATIC_DRAW);
     ibo : GLuint;
     glGenBuffers(1, *ibo);
-    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.count * size_of(float),indices.data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphere_idx.count * size_of(u32),sphere_idx.data, GL_STATIC_DRAW);
 
     shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
 
