@@ -5,7 +5,7 @@
 #import "GL";
 #import "SDL";
 
-verts := #run generate_mesh(1,30,30);
+verts := #run generate_mesh(1,40,40);
 
 //TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
@@ -202,8 +202,8 @@ indices :: u32.[
 vertex_shader_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;
-layout (location = 2) in vec2 aTexCoord;
 layout (location = 1) in vec3 aNorm;
+layout (location = 2) in vec2 aTexCoord;
 
 out vec4 col;
 out vec2 tc;
@@ -233,7 +233,7 @@ in vec4 col;
 
 void main()
 {
-    FragColor = texture(tex, tc) * col * col_mod;
+    FragColor = texture(tex, tc) * col_mod;
 }
 END
 shader_program : GLuint;
@@ -261,12 +261,14 @@ grend_init :: () {
     shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo); //just in case
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * size_of(float), xx 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
     glEnableVertexAttribArray(0);   
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * size_of(float), xx (3 * size_of(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
     glEnableVertexAttribArray(1); 
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * size_of(float), xx (5 * size_of(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
     glEnableVertexAttribArray(2);
+
+    //o := offset_of(Vector3, #code y);
 
     glGenTextures(1, *debug_tex);
     glBindTexture(GL_TEXTURE_2D, debug_tex);
@@ -274,7 +276,7 @@ grend_init :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    tex = generate_debug_texture(400, 400, 4, 4, 4);
+    tex = generate_debug_texture(400, 400, 8, 8, 4);
     //the texture data is in GPU memory via glTexImage2D, we can free after
     defer free(tex.data);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);

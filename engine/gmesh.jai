@@ -5,10 +5,11 @@
 #import "GL";
 #import "SDL";
 
+//alignment
 gVertex :: struct {
     pos : Vector3;
-    tex_coord : Vector2;
     norm : Vector3;
+    tex_coord : Vector2;
 }
 
 make_vertex :: () -> gVertex {
@@ -82,7 +83,7 @@ generate_mesh :: (radius : float = 1.0, sector_count : int = 8, stack_count : in
 
   sphere : [..] gVertex;
   for i : indices {
-    array_add(*sphere, .{ vertices[i], tex_coords[i], normals[i]});
+    array_add(*sphere, .{ vertices[i], normals[i], tex_coords[i]});
   }
   
   return sphere;

@@ -6,6 +6,12 @@
 //We use a _right_ handed negative z-axis forward coordinate system, much like OpenGL does, 
 //we can convert for other graphics APIs on the fly
 
+offset_of :: ($T: Type, ident: Code) -> s64 #expand {
+    t: T;
+    return cast(*void) (*t.#insert ident) - cast(*void) *t;
+}
+
+
 make_ortho_matrix :: (fov : float, aspect : float, near : float, far : float) -> Matrix4 {
     mat := Matrix4_Identity;
 
