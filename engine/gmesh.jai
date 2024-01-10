@@ -7,9 +7,9 @@
 
 //alignment
 gVertex :: struct {
-    pos : Vector3;
-    norm : Vector3;
-    tex_coord : Vector2;
+    pos : gVec3;
+    norm : gVec3;
+    tex_coord : gVec2;
 }
 
 make_vertex :: () -> gVertex {
@@ -20,9 +20,9 @@ make_vertex :: () -> gVertex {
 //Generates a simple sphere mesh
 //for reference: songho.ca/opengl/gl_sphere.html#example_sphere/
 generate_mesh :: (radius : float = 1.0, sector_count : u32 = 8, stack_count : u32 = 8, indexed : bool = false) -> [..] gVertex, [..] u32 {
-    vertices : [..] Vector3;
-    normals : [..] Vector3;
-    tex_coords : [..] Vector2;
+    vertices : [..] gVec3;
+    normals : [..] gVec3;
+    tex_coords : [..] gVec2;
     defer array_free(vertices);
     defer array_free(normals);
     defer array_free(tex_coords);

@@ -16,7 +16,7 @@ gRendContext :: struct {
 //NOTE: Should this be called render DEVICE instead of Context?
 grend_ctx: gRendContext;
 gWin :: struct {
-    dim : Vector2;
+    dim : gVec2;
     opt : GWIN_OPT;
     window : *SDL_Window;
 }
@@ -32,7 +32,7 @@ GWIN_OPT :: enum {
 gTextureData :: struct {
     data : *u8;
     cnum : u32; //3 or 4
-    dim : Vector2;
+    dim : gVec2; //shouldn't these be ints DUMBo
 }
 
 generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u32, cnum : u32) -> gTextureData {
@@ -165,14 +165,13 @@ gwin_update :: (win : *gWin) {
 
     glUseProgram(shader_program);
     glBindVertexArray(grend_ctx.vao);
-    identity : Matrix4 = Matrix4_Identity;
     aspect := 800.0 / 600.0;
-    model_mat := make_translation_matrix(Vector3.{0,1,-2});
-    view_mat := Matrix4_Identity;
-    ortho_mat := make_ortho_matrix(-4,4,-4,4,0,10);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_TRUE, xx *model_mat);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_TRUE, xx *view_mat);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_TRUE, xx *ortho_mat);
+    model_mat := make_translation_matrix(gVec3.{0,0,-2});
+    view_mat := make_lookat_matrix(.{xx sin(get_time()) * 4.0,0,0}, .{0,0,-2}, .{0,1,0});
+    ortho_mat := make_ortho_matrix(-4,4,-4,4,0,4);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
     glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
     glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(4.0 * get_time())));
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
@@ -265,8 +264,6 @@ grend_init :: () {
     glEnableVertexAttribArray(1); 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
     glEnableVertexAttribArray(2);
-
-    //o := offset_of(Vector3, #code y);
 
     glGenTextures(1, *debug_tex);
     glBindTexture(GL_TEXTURE_2D, debug_tex);
