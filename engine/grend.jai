@@ -167,10 +167,9 @@ gwin_update :: (win : *gWin) {
     glBindVertexArray(grend_ctx.vao);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(gVec3.{0,0,-30});
-    cam_pos : gVec3 = .{xx sin(get_time()) * 2.0,0,0};
+    cam_pos : gVec3 = .{0,xx sin(get_time()) * 50.0,0};
     view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
-    ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 50.0);
-    //ortho_mat := make_ortho_frustum(-4,4,-4,4,0,4);
+    ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);

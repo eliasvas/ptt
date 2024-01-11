@@ -30,6 +30,7 @@ operator []= :: (v: *gVec3, i: int, item: float) {v.arr[i] = item;}
 operator *[] :: (v: *gVec3, i: int) -> *gVec3 {return *v.arr[i];}
 operator *= :: (v: *gVec3, scalar: float) {for obj.arr obj.array[it] *= scalar;}
 operator - :: (a: gVec3, b : gVec3) -> gVec3 {return .{a.x - b.x, a.y - b.y, a.z - b.z};}
+dot_gvec3 :: (a : gVec3, b : gVec3) -> float {return a.x*b.x+a.y*b.y+a.z*b.z;}
 normalize_gvec3 :: (v : gVec3) -> gVec3 {
   ret : gVec3 = v;
   inv_len := 1.0 / sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
@@ -149,14 +150,15 @@ make_lookat_matrix :: (from : gVec3, to : gVec3, dummy_up : gVec3) -> gMat4 {
   fwd := from - to;
   fwd = normalize_gvec3(fwd);
   right := cross_gvec3(dummy_up,fwd);
-  right = normalize_gvec3(xx right);
-  up := cross_gvec3(fwd,right);
+  right = normalize_gvec3(right);
+  up := cross_gvec3(right, fwd);
   up = normalize_gvec3(up);
 
   mat.col[0] = .{right.x,right.y,right.z,0};
   mat.col[1] = .{up.x,up.y,up.z,0};
   mat.col[2] = .{fwd.x,fwd.y,fwd.z,0};
-  mat.col[3] = .{-from.x,-from.y,-from.z,1};
+  mat.col[3] = .{-(dot_gvec3(right,from)),-(dot_gvec3(up, from)),-(dot_gvec3(fwd, from)),1};
 
+  //mat = make_transpose_matrix(mat);
   return mat;
 }
