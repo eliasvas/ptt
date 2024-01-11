@@ -167,13 +167,14 @@ gwin_update :: (win : *gWin) {
     glBindVertexArray(grend_ctx.vao);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(gVec3.{0,0,-2});
-    view_mat := make_lookat_matrix(.{xx sin(get_time()) * 4.0,0,0}, .{0,0,-2}, .{0,1,0});
+    cam_pos : gVec3 = .{xx sin(get_time()) * 2.0,0,0};
+    view_mat := GM4_IDENTITY;//make_lookat_matrix(cam_pos,.{0,0,-2}, .{0,1,0});
     ortho_mat := make_ortho_matrix(-4,4,-4,4,0,4);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
     glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
-    glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(4.0 * get_time())));
+    glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(get_time()/2.0)) );
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
     //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
 
@@ -230,7 +231,7 @@ in vec4 col;
 
 void main()
 {
-    FragColor = texture(tex, tc) * col_mod;
+    FragColor = texture(tex, tc) * (col_mod/2 + 0.5);
 }
 END
 shader_program : GLuint;
