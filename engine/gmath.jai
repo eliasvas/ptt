@@ -4,9 +4,12 @@
 #import "Math";
 //For some reason Jai's default module has weird coordinate system, this is a try to fix it.
 
-//This is a good writeup on the basics of OpenGL-style math:
-//https://www.songho.ca/opengl/index.html
-//also https://learnopengl.com/ is GOAT
+//This is a good writeup on the basics of 3D math:
+//https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
+//Also Eric Lengyel's books kick ass.
+
+//converts degrees to radians
+d2r :: (deg : float) -> float {return deg * (PI / 180.0);}
 
 gVec2:: struct {
   x,y : float;
@@ -71,6 +74,31 @@ make_translation_matrix :: (pos : gVec3) -> gMat4 {
 }
 
 
+make_transpose_matrix :: (mat : gMat4) -> gMat4 {
+  trans : gMat4 = ---;
+  for i : 0..mat.col.count-1 {
+    for it,idx : mat.col[i].arr {
+      trans.col[idx][i] = it;
+    } 
+  }
+  return trans;
+}
+
+//NOTE: (-) sign messes up formatting, maybe there is a standard fix?
+print_mat :: (mat : gMat4) {
+  //we get the row-major form to print the column matrix row-by-row
+  mat_transp := make_transpose_matrix(mat); 
+  print("--------\n");
+  for i : 0..mat_transp.col.count-1 {
+    print("|");
+    for mat_transp.col[i].arr {
+      print(" %",formatFloat(it, width=1, trailing_width=2, zero_removal=.NO));
+    } 
+    print("|\n");
+  }
+  print("--------\n");
+}
+
 make_scale_matrix :: (axis : gVec3, angle : float) ->gMat4 {
   mat := GM4_IDENTITY;
   //TBD
@@ -84,23 +112,37 @@ make_scale_matrix :: (scale : gVec3) -> gMat4 {
   mat.col[2][2] = scale.z;
   return mat;
 }
-make_proj_matrix :: (fov : float, aspect : float, near : float, far : float) -> gMat4 {
+//TODO: make these column-based indices so I know whats up
+make_ortho_frustum :: (l : float, r : float, b : float, t : float, n : float, f : float) -> gMat4 {
   mat := GM4_IDENTITY;
-  //TBD
+  mat.col[0][0]  = 2 / (r - l);
+  mat.col[1][1]  = 2 / (t - b);
+  mat.col[2][2] = -2 / (f - n);
+  mat.col[3][0] = -(r + l) / (r - l);
+  mat.col[3][1] = -(t + b) / (t - b);
+  mat.col[3][2] = -(f + n) / (f - n);
   return mat;
 }
-//TODO: make these column-based indices so I know whats up
-make_ortho_matrix :: (l : float, r : float, b : float, t : float, n : float, f : float) -> gMat4 {
-  mat := GM4_IDENTITY;
-  mat.arr[0]  = 2 / (r - l);
-  mat.arr[5]  = 2 / (t - b);
-  mat.arr[10] = -2 / (f - n);
-  mat.arr[12] = -(r + l) / (r - l);
-  mat.arr[13] = -(t + b) / (t - b);
-  mat.arr[14] = -(f + n) / (f - n);
+make_perspective_frustum :: (l : float, r : float, b : float, t : float, n : float, f : float) -> gMat4 {
+  mat : gMat4;
+  mat.col[0][0]  = 2.0 * n / (r - l);
+  mat.col[1][1]  = 2.0 * n / (t - b);
+  mat.col[2][0] = (r + l) / (r - l);
+  mat.col[2][1] = (t + b) / (t - b);
+  mat.col[2][2] = -(f + n) / (f - n);
+  mat.col[2][3] = -1.0;
+  mat.col[3][2]  = -2.0 * n * f / (f - n);
   return mat;
 }
 
+make_perspective_matrix :: (fov : float, aspect : float, near : float, far : float) -> gMat4 {
+  fov_rad := d2r(fov);
+  fov_rad = 2.0 * atan(tan(fov * 0.5) / aspect); //transform to vertical fov
+  tangent := tan(fov_rad / 2.0);
+  height := near * tangent;
+  width := height * aspect;
+  return make_perspective_frustum(-width, width, -height, height, near, far);
+}
 make_lookat_matrix :: (from : gVec3, to : gVec3, dummy_up : gVec3) -> gMat4 {
   mat := GM4_IDENTITY;
 

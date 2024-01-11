@@ -160,16 +160,17 @@ gwin_update :: (win : *gWin) {
     gwin_resize_if_necessary(win);
     dt := ges.dt;
     glViewport(0, 0, xx win.dim.x, xx win.dim.y);
-    glClearColor(0.4, 0.4, 0.4, 1.0);
+    glClearColor(0.2, 0.2, 0.2, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(shader_program);
     glBindVertexArray(grend_ctx.vao);
     aspect := 800.0 / 600.0;
-    model_mat := make_translation_matrix(gVec3.{0,0,-2});
+    model_mat := make_translation_matrix(gVec3.{0,0,-30});
     cam_pos : gVec3 = .{xx sin(get_time()) * 2.0,0,0};
-    view_mat := GM4_IDENTITY;//make_lookat_matrix(cam_pos,.{0,0,-2}, .{0,1,0});
-    ortho_mat := make_ortho_matrix(-4,4,-4,4,0,4);
+    view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
+    ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 50.0);
+    //ortho_mat := make_ortho_frustum(-4,4,-4,4,0,4);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
