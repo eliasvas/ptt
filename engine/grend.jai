@@ -5,6 +5,9 @@
 #import "GL";
 #import "SDL";
 
+//TODO: we need to emulate OpenGL state machine, to be able to discard VAOs and infer glVertexAttribPointers
+//so we can just bind VBO/IBOs and set correct state / have a pipeline, and not mess with UGLY opengl state machine stuff.
+
 sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 
 //TODO: generate a sphere, like the texture, also use together?!
@@ -145,6 +148,28 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
     return win;
 }
   
+//Note: This is made just to check that 3D rendering works (jk)
+draw_sample_sphere_in_position :: (pos : gVec3){
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_ibo);
+    
+    glUseProgram(shader_program_3D);
+    glBindVertexArray(grend_ctx.vao);
+    aspect := 800.0 / 600.0;
+    model_mat := make_translation_matrix(pos);
+    cam_pos : gVec3 = .{0,xx sin(get_time()) * 50.0,0};
+    view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
+    ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "view"),1, GL_FALSE, xx *view_mat);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "proj"),1, GL_FALSE, xx *ortho_mat);
+    glUniform1i(glGetUniformLocation(shader_program_3D, "tex"), 0);
+    glUniform1f(glGetUniformLocation(shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
+    glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
+    //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
 
 gwin_update :: (win : *gWin) {
     gwin_resize_if_necessary :: (win : *gWin) {
@@ -163,20 +188,18 @@ gwin_update :: (win : *gWin) {
     glClearColor(0.2, 0.2, 0.2, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(shader_program);
+    //draw_sample_sphere_in_position(.{0,0,-30});
+
+    //draw UI
+    glBindBuffer(GL_ARRAY_BUFFER, ui_vbo);
+    glUseProgram(shader_program_ui);
     glBindVertexArray(grend_ctx.vao);
-    aspect := 800.0 / 600.0;
-    model_mat := make_translation_matrix(gVec3.{0,0,-30});
-    cam_pos : gVec3 = .{0,xx sin(get_time()) * 50.0,0};
-    view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
-    ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "model"),1, GL_FALSE, xx *model_mat);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"),1, GL_FALSE, xx *view_mat);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "proj"),1, GL_FALSE, xx *ortho_mat);
-    glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
-    glUniform1f(glGetUniformLocation(shader_program, "col_mod"), xx abs(sin(get_time()/2.0)) );
-    glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
-    //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
+    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[0]"), 0.1,0.1);
+    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[1]"), 0.2,0.2);
+    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[2]"), 0.3,0.3);
+    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[3]"), 0.4,0.4);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, xx 4);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -187,17 +210,15 @@ gwin_cleanup :: (win : *gWin){
 }
 
 vertices :: float.[
-     0.5,  0.5, 0.0, 1.0,0.0,0.0,1.0, 1.0,1.0,// top right
-     0.5, -0.5, 0.0, 0.0,1.0,0.0,1.0, 1.0,0.0,// bottom right
-    -0.5, -0.5, 0.0, 0.0,0.0,1.0,1.0, 0.0,0.0,// bottom left
-    -0.5,  0.5, 0.0, 1.0,1.0,1.0,1.0, 0.0,1.0// top left 
+     0.5,  0.5, 1.0,0.0,0.0,1.0,
+     0.5, -0.5, 0.0,1.0,0.0,1.0,
+    -0.5, -0.5, 0.0,0.0,1.0,1.0,
+    -0.5, -0.5, 0.0,0.0,1.0,1.0,
+    -0.5,  0.5, 1.0,1.0,1.0,1.0,
+     0.5,  0.5, 1.0,0.0,0.0,1.0
 ];
-indices :: u32.[
-    0, 1, 3,
-    1, 2, 3
-]; 
 
-vertex_shader_source :: #string END
+vertex_shader_3D_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
@@ -218,9 +239,7 @@ void main()
     gl_Position = proj * view * model * vec4(aPos, 1.0);
 }
 END;
-
-
-fragment_shader_source :: #string END
+fragment_shader_3D_source :: #string END
 #version 330 core
 out vec4 FragColor;
 in vec2 tc;
@@ -234,9 +253,43 @@ void main()
     FragColor = texture(tex, tc) * (col_mod/2 + 0.5);
 }
 END
-shader_program : GLuint;
+
+vertex_shader_ui_source :: #string END
+#version 330 core
+layout (location = 0) in vec2 aPos;
+layout (location = 1) in vec4 aColor;
+
+out vec4 fColor;
+
+uniform vec2 offsets[100];
+
+void main()
+{
+    vec2 offset = offsets[gl_InstanceID];
+    gl_Position = vec4(aPos + offset, 0.0, 1.0);
+    fColor = aColor;
+}  
+END
+fragment_shader_ui_source :: #string END
+#version 330 core
+out vec4 FragColor;
+  
+in vec4 fColor;
+
+void main()
+{
+    FragColor = fColor;
+}
+END
+shader_program_3D : GLuint;
+sphere_vbo : GLuint;
+sphere_ibo : GLuint;
 tex : gTextureData;
 debug_tex : GLuint;
+
+shader_program_ui : GLuint;
+ui_vbo : GLuint;
+
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
     glEnable(GL_DEPTH_TEST);
@@ -247,25 +300,28 @@ grend_init :: () {
     glBindVertexArray(grend_ctx.vao);
     
 
-    vbo : GLuint;
-    glGenBuffers(1, *vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    shader_program_ui = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
+
+/*
+    //debug sphere initialization
+    glGenBuffers(1, *sphere_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
     glBufferData(GL_ARRAY_BUFFER, sphere_verts.count * size_of(gVertex),sphere_verts.data, GL_STATIC_DRAW);
-    ibo : GLuint;
-    glGenBuffers(1, *ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glGenBuffers(1, *sphere_ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphere_idx.count * size_of(u32),sphere_idx.data, GL_STATIC_DRAW);
-
-    shader_program = gmake_gl_sp(vertex_shader_source, fragment_shader_source);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo); //just in case
+    shader_program_3D = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
     glEnableVertexAttribArray(0);   
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
     glEnableVertexAttribArray(1); 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
     glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+*/
 
+    //debug texture initialization
     glGenTextures(1, *debug_tex);
     glBindTexture(GL_TEXTURE_2D, debug_tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
@@ -277,8 +333,20 @@ grend_init :: () {
     defer free(tex.data);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
-    
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
     glBindTexture(GL_TEXTURE_2D, debug_tex);
+
+
+    //quad initialization
+    glGenBuffers(1, *ui_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, ui_vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
+    shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(float) * 6,xx 0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, size_of(float) * 6, xx (size_of(float) * 2));
+    glEnableVertexAttribArray(1); 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 }
 
