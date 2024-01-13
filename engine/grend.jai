@@ -152,12 +152,21 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
 draw_sample_sphere_in_position :: (pos : gVec3){
     glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_ibo);
+
+    //the VAO needs glVertexAttrib* (because it f'ing stores them)
+    //TODO: we should EMULATE this
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
+    glEnableVertexAttribArray(0);   
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
+    glEnableVertexAttribArray(1); 
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
+    glEnableVertexAttribArray(2);
     
     glUseProgram(shader_program_3D);
     glBindVertexArray(grend_ctx.vao);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(pos);
-    cam_pos : gVec3 = .{0,xx sin(get_time()) * 50.0,0};
+    cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
     view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
     ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
     glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
@@ -188,10 +197,14 @@ gwin_update :: (win : *gWin) {
     glClearColor(0.2, 0.2, 0.2, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //draw_sample_sphere_in_position(.{0,0,-30});
+    draw_sample_sphere_in_position(.{0,0,-30});
 
     //draw UI
     glBindBuffer(GL_ARRAY_BUFFER, ui_vbo);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(float) * 6,xx 0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, size_of(float) * 6, xx (size_of(float) * 2));
+    glEnableVertexAttribArray(1); 
     glUseProgram(shader_program_ui);
     glBindVertexArray(grend_ctx.vao);
     glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[0]"), 0.1,0.1);
@@ -302,7 +315,6 @@ grend_init :: () {
 
     shader_program_ui = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
 
-/*
     //debug sphere initialization
     glGenBuffers(1, *sphere_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
@@ -319,7 +331,6 @@ grend_init :: () {
     glEnableVertexAttribArray(2);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-*/
 
     //debug texture initialization
     glGenTextures(1, *debug_tex);
