@@ -156,10 +156,13 @@ draw_sample_sphere_in_position :: (pos : gVec3){
     //the VAO needs glVertexAttrib* (because it f'ing stores them)
     //TODO: we should EMULATE this
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
+    glVertexAttribDivisor(1, 0);
     glEnableVertexAttribArray(0);   
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
+    glVertexAttribDivisor(1, 0);
     glEnableVertexAttribArray(1); 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
+    glVertexAttribDivisor(2, 0);
     glEnableVertexAttribArray(2);
     
     glUseProgram(shader_program_3D);
@@ -207,11 +210,11 @@ gwin_update :: (win : *gWin) {
     glEnableVertexAttribArray(1); 
     glUseProgram(shader_program_ui);
     glBindVertexArray(grend_ctx.vao);
-    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[0]"), 0.1,0.1);
-    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[1]"), 0.2,0.2);
-    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[2]"), 0.3,0.3);
-    glUniform2f(glGetUniformLocation(shader_program_ui, "offsets[3]"), 0.4,0.4);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, xx 4);
+    glBindBuffer(GL_ARRAY_BUFFER, ui_instance_vbo);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(float) * 2,xx 0);
+    glVertexAttribDivisor(2, 1);
+    glEnableVertexAttribArray(2); 
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, xx 3);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     SDL_GL_SwapWindow(win.window);
@@ -230,6 +233,7 @@ vertices :: float.[
     -0.5,  0.5, 1.0,1.0,1.0,1.0,
      0.5,  0.5, 1.0,0.0,0.0,1.0
 ];
+
 
 vertex_shader_3D_source :: #string END
 #version 330 core
@@ -271,17 +275,15 @@ vertex_shader_ui_source :: #string END
 #version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec4 aColor;
+layout (location = 2) in vec2 aOffset;
 
 out vec4 fColor;
 
-uniform vec2 offsets[100];
-
 void main()
 {
-    vec2 offset = offsets[gl_InstanceID];
-    gl_Position = vec4(aPos + offset, 0.0, 1.0);
+    gl_Position = vec4(aPos + aOffset, 0.0, 1.0);
     fColor = aColor;
-}  
+} 
 END
 fragment_shader_ui_source :: #string END
 #version 330 core
@@ -302,6 +304,7 @@ debug_tex : GLuint;
 
 shader_program_ui : GLuint;
 ui_vbo : GLuint;
+ui_instance_vbo : GLuint;
 
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
@@ -324,10 +327,13 @@ grend_init :: () {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphere_idx.count * size_of(u32),sphere_idx.data, GL_STATIC_DRAW);
     shader_program_3D = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
+    glVertexAttribDivisor(1, 0);
     glEnableVertexAttribArray(0);   
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
+    glVertexAttribDivisor(1, 0);
     glEnableVertexAttribArray(1); 
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
+    glVertexAttribDivisor(2, 0);
     glEnableVertexAttribArray(2);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -354,9 +360,18 @@ grend_init :: () {
     glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
     shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(float) * 6,xx 0);
+    glVertexAttribDivisor(0, 0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, size_of(float) * 6, xx (size_of(float) * 2));
+    glVertexAttribDivisor(1, 0);
     glEnableVertexAttribArray(1); 
+    offsets :: float.[ 0.1,0.1,0.2,0.2,0.3,0.3 ];
+    glGenBuffers(1, *ui_instance_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, ui_instance_vbo);
+    glBufferData(GL_ARRAY_BUFFER, offsets.count * size_of(float),offsets.data, GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(float) * 2,xx 0);
+    glVertexAttribDivisor(2, 1);
+    glEnableVertexAttribArray(2); 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 }
