@@ -12,13 +12,25 @@ sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 
 //TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
-    vao : GLuint;
+
+    shader_program_3D : GLuint;
+    sphere_vao : GLuint;
+    sphere_vbo : GLuint;
+    sphere_ibo : GLuint;
+    debug_tex : gTextureData;
+    debug_gl_tex : GLuint;
+
+    shader_program_ui : GLuint;
     ui_vao : GLuint;
+    //ui_vbo : GLuint;
+    ui_instance_vbo : GLuint;
+    white_tex : gTextureData;
+    white_gl_tex : GLuint;
     //+ a command buffer?!
 }
 
 //NOTE: Should this be called render DEVICE instead of Context?
-grend_ctx: gRendContext;
+grc: gRendContext;
 gWin :: struct {
     dim : gVec2;
     opt : GWIN_OPT;
@@ -54,7 +66,7 @@ generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u
         xtile_white : bool = pixel_x / (width / x_tiles) % 2 == 0;
         ytile_white : bool = (height-pixel_y) / (height / y_tiles) % 2 == 0;
 
-        color := ifx xtile_white ^ ytile_white then 255 else 0;
+        color := ifx xtile_white ^ ytile_white then 0 else 255;
         tex_data.data[pixel_index + 0] = xx color;
         tex_data.data[pixel_index + 1] = xx color;
         tex_data.data[pixel_index + 2] = xx color;
@@ -152,18 +164,20 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
 //Note: This is made just to check that 3D rendering works (jk)
 draw_sample_sphere_in_position :: (pos : gVec3){
     
-    glBindVertexArray(grend_ctx.vao);
-    glUseProgram(shader_program_3D);
+    glBindVertexArray(grc.sphere_vao);
+    glUseProgram(grc.shader_program_3D);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(pos);
     cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
     view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
     ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "view"),1, GL_FALSE, xx *view_mat);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program_3D, "proj"),1, GL_FALSE, xx *ortho_mat);
-    glUniform1i(glGetUniformLocation(shader_program_3D, "tex"), 0);
-    glUniform1f(glGetUniformLocation(shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
+    glUniformMatrix4fv(glGetUniformLocation(grc.shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
+    glUniformMatrix4fv(glGetUniformLocation(grc.shader_program_3D, "view"),1, GL_FALSE, xx *view_mat);
+    glUniformMatrix4fv(glGetUniformLocation(grc.shader_program_3D, "proj"),1, GL_FALSE, xx *ortho_mat);
+    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
+    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
+    glUniform1i(glGetUniformLocation(grc.shader_program_3D, "tex"), 0);
+    glUniform1f(glGetUniformLocation(grc.shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
     //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
     glBindVertexArray(0);
@@ -191,9 +205,13 @@ gwin_update :: (win : *gWin) {
     draw_sample_sphere_in_position(.{0,0,-30});
 
     //draw UI
-    glBindVertexArray(grend_ctx.ui_vao);
-    glUseProgram(shader_program_ui);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, xx 3);
+    glBindVertexArray(grc.ui_vao);
+    glUseProgram(grc.shader_program_ui);
+    glUniform2f(glGetUniformLocation(grc.shader_program_ui, "res"), xx 800.0, xx 600.0);
+    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
+    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
+    glUniform1i(glGetUniformLocation(grc.shader_program_ui, "tex"), 0);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx 2);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -202,16 +220,6 @@ gwin_cleanup :: (win : *gWin){
     SDL_DestroyWindow(win.window);
     memset(win, 0, size_of(gWin));
 }
-
-vertices :: float.[
-     0.5,  0.5, 1.0,0.0,0.0,1.0,
-     0.5, -0.5, 0.0,1.0,0.0,1.0,
-    -0.5, -0.5, 0.0,0.0,1.0,1.0,
-    -0.5, -0.5, 0.0,0.0,1.0,1.0,
-    -0.5,  0.5, 1.0,1.0,1.0,1.0,
-     0.5,  0.5, 1.0,0.0,0.0,1.0
-];
-
 
 vertex_shader_3D_source :: #string END
 #version 330 core
@@ -251,38 +259,67 @@ END
 
 vertex_shader_ui_source :: #string END
 #version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec4 aColor;
-layout (location = 2) in vec2 aOffset;
+layout (location = 0) in vec2 p0;
+layout (location = 1) in vec2 p1;
+layout (location = 2) in vec2 t0;
+layout (location = 3) in vec2 t1;
+layout (location = 4) in vec4 color[4];
 
-out vec4 fColor;
+uniform vec2 res;
+
+out vec4 col;
+out vec2 tc;
+uniform sampler2D tex;
+
+vec2 vertices[] = {
+    vec2(-1.0, -1.0),
+    vec2(-1.0, +1.0),
+    vec2(+1.0, -1.0),
+    vec2(+1.0, +1.0),
+};
+
 
 void main()
 {
-    gl_Position = vec4(aPos + aOffset, 0.0, 1.0);
-    fColor = aColor;
+    vec2 dst_half_size = (p1 - p0) / 2;
+    vec2 dst_center = (p1 + p0) / 2;
+    vec2 dst_pos = vertices[gl_VertexID] * dst_half_size + dst_center;
+    gl_Position = vec4(2 * dst_pos.x / res.x - 1, 2 * dst_pos.y / res.y - 1, 0.0, 1.0);
+    gl_Position.y *= -1.0;
+
+    vec2 tex_half_size = (t1 - t0) / 2;
+    vec2 tex_center = (t1 + t0) / 2;
+    vec2 tex_pos = vertices[gl_VertexID] * tex_half_size + tex_center;
+    tc = vec2(2 * tex_pos.x / textureSize(tex,0).x, 2 * tex_pos.y / textureSize(tex,0).y);
+    col = color[gl_VertexID];
 } 
 END
 fragment_shader_ui_source :: #string END
 #version 330 core
 out vec4 FragColor;
   
-in vec4 fColor;
+in vec4 col;
+in vec2 tc;
+
+uniform sampler2D tex;
 
 void main()
 {
-    FragColor = fColor;
+    FragColor = texture(tex, tc) * col;
 }
 END
-shader_program_3D : GLuint;
-sphere_vbo : GLuint;
-sphere_ibo : GLuint;
-tex : gTextureData;
-debug_tex : GLuint;
 
-shader_program_ui : GLuint;
-ui_vbo : GLuint;
-ui_instance_vbo : GLuint;
+
+QuadInstance :: struct {
+    p0  : gVec2; //position in window coords
+    p1  : gVec2;
+    t0  : gVec2; //tex coord in texture's units
+    t1  : gVec2;
+    col0 : gVec4;
+    col1 : gVec4;
+    col2 : gVec4;
+    col3 : gVec4;
+}
 
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
@@ -290,18 +327,18 @@ grend_init :: () {
 
     //should there be like, a reset vao so we can re-use
     //the same vao for ALL rendering?
-    glGenVertexArrays(1, *grend_ctx.vao);
-    glBindVertexArray(grend_ctx.vao);
+    glGenVertexArrays(1, *grc.sphere_vao);
+    glBindVertexArray(grc.sphere_vao);
     
 
     //debug sphere initialization
-    glGenBuffers(1, *sphere_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
+    glGenBuffers(1, *grc.sphere_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, grc.sphere_vbo);
     glBufferData(GL_ARRAY_BUFFER, sphere_verts.count * size_of(gVertex),sphere_verts.data, GL_STATIC_DRAW);
-    glGenBuffers(1, *sphere_ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_ibo);
+    glGenBuffers(1, *grc.sphere_ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, grc.sphere_ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphere_idx.count * size_of(u32),sphere_idx.data, GL_STATIC_DRAW);
-    shader_program_3D = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
+    grc.shader_program_3D = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
     glVertexAttribDivisor(1, 0);
     glEnableVertexAttribArray(0);   
@@ -316,43 +353,66 @@ grend_init :: () {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     //debug texture initialization
-    glGenTextures(1, *debug_tex);
-    glBindTexture(GL_TEXTURE_2D, debug_tex);
+    glGenTextures(1, *grc.debug_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    tex = generate_debug_texture(400, 400, 8, 8, 4);
+    grc.debug_tex = generate_debug_texture(400, 400, 8, 8, 4);
     //the texture data is in GPU memory via glTexImage2D, we can free after
-    defer free(tex.data);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.data);
+    defer free(grc.debug_tex.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, grc.debug_tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, debug_tex);
-
 
     //quad initialization
-    shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
-    glGenVertexArrays(1, *grend_ctx.ui_vao);
-    glBindVertexArray(grend_ctx.ui_vao);
-    glGenBuffers(1, *ui_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, ui_vbo);
-    glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(float) * 6,xx 0);
-    glVertexAttribDivisor(0, 0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, size_of(float) * 6, xx (size_of(float) * 2));
-    glVertexAttribDivisor(1, 0);
-    glEnableVertexAttribArray(1); 
-    offsets :: float.[ 0.1,0.1,0.2,0.2,0.3,0.3 ];
-    glGenBuffers(1, *ui_instance_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, ui_instance_vbo);
-    glBufferData(GL_ARRAY_BUFFER, offsets.count * size_of(float),offsets.data, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(float) * 2,xx 0);
+    grc.shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
+    glGenVertexArrays(1, *grc.ui_vao);
+    glBindVertexArray(grc.ui_vao);
+    offsets :: QuadInstance.[ .{.{0,0},.{300,300}, .{0,0}, .{400,400},.{1,0,0,1},.{0,1,0,1},.{0,0,1,1},.{0,0,0,1}}, .{.{300,300},.{400,400}, .{0,0}, .{200,400},.{1,0,1,1}, .{1,0,1,1},.{1,1,1,1},.{1,1,1,1}}];
+    glGenBuffers(1, *grc.ui_instance_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, grc.ui_instance_vbo);
+    glBufferData(GL_ARRAY_BUFFER, offsets.count * size_of(QuadInstance),offsets.data, GL_STREAM_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code p0));
+    glVertexAttribDivisor(0, 1);
+    glEnableVertexAttribArray(0); 
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code p1));
+    glVertexAttribDivisor(1, 1);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code t0));
     glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2); 
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code t1));
+    glVertexAttribDivisor(3, 1);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col0));
+    glVertexAttribDivisor(4, 1);
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col1));
+    glVertexAttribDivisor(5, 1);
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col2));
+    glVertexAttribDivisor(6, 1);
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col3));
+    glVertexAttribDivisor(7, 1);
+    glEnableVertexAttribArray(7);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
+    //white texture initialization
+    glGenTextures(1, *grc.white_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    grc.white_tex = generate_debug_texture(400, 400, 1, 1, 4);
+    //the texture data is in GPU memory via glTexImage2D, we can free after
+    defer free(grc.white_tex.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, grc.white_tex.data);
+    //glGenerateMipmap(GL_TEXTURE_2D);
 
 }
 
