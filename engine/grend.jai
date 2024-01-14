@@ -13,6 +13,7 @@ sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 //TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
     vao : GLuint;
+    ui_vao : GLuint;
     //+ a command buffer?!
 }
 
@@ -150,23 +151,9 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
   
 //Note: This is made just to check that 3D rendering works (jk)
 draw_sample_sphere_in_position :: (pos : gVec3){
-    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_ibo);
-
-    //the VAO needs glVertexAttrib* (because it f'ing stores them)
-    //TODO: we should EMULATE this
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
-    glVertexAttribDivisor(1, 0);
-    glEnableVertexAttribArray(0);   
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
-    glVertexAttribDivisor(1, 0);
-    glEnableVertexAttribArray(1); 
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
-    glVertexAttribDivisor(2, 0);
-    glEnableVertexAttribArray(2);
     
-    glUseProgram(shader_program_3D);
     glBindVertexArray(grend_ctx.vao);
+    glUseProgram(shader_program_3D);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(pos);
     cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
@@ -179,6 +166,7 @@ draw_sample_sphere_in_position :: (pos : gVec3){
     glUniform1f(glGetUniformLocation(shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
     //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
+    glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
@@ -203,19 +191,9 @@ gwin_update :: (win : *gWin) {
     draw_sample_sphere_in_position(.{0,0,-30});
 
     //draw UI
-    glBindBuffer(GL_ARRAY_BUFFER, ui_vbo);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(float) * 6,xx 0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, size_of(float) * 6, xx (size_of(float) * 2));
-    glEnableVertexAttribArray(1); 
+    glBindVertexArray(grend_ctx.ui_vao);
     glUseProgram(shader_program_ui);
-    glBindVertexArray(grend_ctx.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, ui_instance_vbo);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(float) * 2,xx 0);
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2); 
     glDrawArraysInstanced(GL_TRIANGLES, 0, 6, xx 3);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -316,8 +294,6 @@ grend_init :: () {
     glBindVertexArray(grend_ctx.vao);
     
 
-    shader_program_ui = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
-
     //debug sphere initialization
     glGenBuffers(1, *sphere_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
@@ -335,6 +311,7 @@ grend_init :: () {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
     glVertexAttribDivisor(2, 0);
     glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -355,10 +332,12 @@ grend_init :: () {
 
 
     //quad initialization
+    shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
+    glGenVertexArrays(1, *grend_ctx.ui_vao);
+    glBindVertexArray(grend_ctx.ui_vao);
     glGenBuffers(1, *ui_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, ui_vbo);
     glBufferData(GL_ARRAY_BUFFER, vertices.count * size_of(float),vertices.data, GL_STATIC_DRAW);
-    shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(float) * 6,xx 0);
     glVertexAttribDivisor(0, 0);
     glEnableVertexAttribArray(0);
@@ -372,6 +351,7 @@ grend_init :: () {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(float) * 2,xx 0);
     glVertexAttribDivisor(2, 1);
     glEnableVertexAttribArray(2); 
+    glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 }

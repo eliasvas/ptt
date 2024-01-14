@@ -16,6 +16,8 @@
 //0.) Basic 2d rendering abstraction
 //1.) UI Basics
 //2.) VERY simple roguelite base 
+//This is intresting for creating dynamic worlds https://www.youtube.com/watch?v=20KHNA9jTsE and https://www.youtube.com/watch?v=zIRTOgfsjl0, maybe i can do this for dungeons
+//also this should be the base? https://rogueliketutorials.com/tutorials/tcod/v2/
 
 window : gWin;
 
