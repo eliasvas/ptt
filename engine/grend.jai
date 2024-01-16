@@ -27,6 +27,7 @@ gRendContext :: struct {
     white_tex : gTextureData;
     white_gl_tex : GLuint;
     //+ a command buffer?!
+    quads : [..] QuadInstance;
 }
 
 //NOTE: Should this be called render DEVICE instead of Context?
@@ -199,20 +200,33 @@ gwin_update :: (win : *gWin) {
     gwin_resize_if_necessary(win);
     dt := ges.dt;
     glViewport(0, 0, xx win.dim.x, xx win.dim.y);
-    glClearColor(0.2, 0.2, 0.2, 1.0);
+    glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //draw_sample_sphere_in_position(.{0,0,-30});
 
     //draw UI
+
+    grend_push_quad(.{.{0,0},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,10,10.0});
+    grend_push_quad(.{.{0,0},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,10,0.0});
+
+    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{200,300},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},50,5,0});
+
     glBindVertexArray(grc.ui_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, grc.ui_instance_vbo);
+    glBufferData(GL_ARRAY_BUFFER, grc.quads.count * size_of(QuadInstance),grc.quads.data, GL_STREAM_DRAW);
+
     glUseProgram(grc.shader_program_ui);
-    glUniform2f(glGetUniformLocation(grc.shader_program_ui, "res"), xx 800.0, xx 600.0);
+    glUniform2f(glGetUniformLocation(grc.shader_program_ui, "res"), xx win.dim.x, xx win.dim.y);
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
     glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
     glUniform1i(glGetUniformLocation(grc.shader_program_ui, "tex"), 0);
+
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx 3);
 
+    //after drawing clear the quad array 
+    //FIXME: this doesnt clean up, meaning the memory is still tehre
+    grc.quads.count = 0;
     SDL_GL_SwapWindow(win.window);
 }
 
@@ -273,14 +287,16 @@ uniform vec2 res;
 out vec4 col;
 out vec2 tc;
 
-out vec2 dst_posf;
-out vec2 dst_centerf;
-out vec2 dst_half_sizef;
-//should corner radius be remapped to [0-1]?
-out float corner_radiusf;
-out float edge_softnessf;
-out float border_thicknessf;
-
+out VSI{
+    vec4 color; //send color to next stage
+    vec2 dst_pos;
+    vec2 dst_center;
+    vec2 dst_half_size;
+    //should corner radius + softness be remapped to [0-1]? I should look better into the math at some point
+    float corner_radius;
+    float edge_softness;
+    float border_thickness;
+}vsi;
 uniform sampler2D tex;
 
 vec2 vertices[] = {
@@ -305,12 +321,12 @@ void main()
     tc = vec2(2 * tex_pos.x / textureSize(tex,0).x, 2 * tex_pos.y / textureSize(tex,0).y);
     col = color[gl_VertexID];
 
-    dst_posf = dst_pos;
-    dst_centerf = dst_center;
-    dst_half_sizef = dst_half_size;
-    corner_radiusf = corner_radius; 
-    edge_softnessf = edge_softness;
-    border_thicknessf = border_thickness;
+    vsi.dst_pos = dst_pos;
+    vsi.dst_center = dst_center;
+    vsi.dst_half_size = dst_half_size;
+    vsi.corner_radius = corner_radius; 
+    vsi.edge_softness = edge_softness;
+    vsi.border_thickness = border_thickness;
 } 
 END
 fragment_shader_ui_source :: #string END
@@ -332,31 +348,35 @@ float RoundedRectSDF(vec2 sample_pos,
 in vec4 col;
 in vec2 tc;
 
-in vec2 dst_posf;
-in vec2 dst_centerf;
-in vec2 dst_half_sizef;
-in float corner_radiusf;
-in float edge_softnessf;
-in float border_thicknessf;
-
+in VSI {
+    vec4 color; //send color to next stage
+    vec2 dst_pos;
+    vec2 dst_center;
+    vec2 dst_half_size;
+    //should corner radius + softness be remapped to [0-1]? I should look better into the math at some point
+    float corner_radius;
+    float edge_softness;
+    float border_thickness;
+}vsi;
 uniform sampler2D tex;
+
 
 void main()
 {
-    float softness = edge_softnessf;
+    float softness = vsi.edge_softness;
     vec2 softness_padding = vec2(max(0, softness*2-1), max(0, softness*2-1));
     // sample distance
-    float dist = RoundedRectSDF(dst_posf, dst_centerf, dst_half_sizef-softness_padding, corner_radiusf);
+    float dist = RoundedRectSDF(vsi.dst_pos, vsi.dst_center, vsi.dst_half_size - softness_padding, vsi.corner_radius);
     // map distance => a blend factor
     float sdf_factor = 1.0 - smoothstep(0, 2*softness, dist);
     //calculate the border factor
     float border_factor = 1.f;
-    if(border_thicknessf != 0)
+    if(vsi.border_thickness != 0)
     {
-        vec2 interior_half_size = dst_half_sizef - vec2(border_thicknessf);
-        float interior_radius_reduce_f = min(interior_half_size.x/dst_half_sizef.x, interior_half_size.y/dst_half_sizef.y);
-        float interior_corner_radius = (corner_radiusf * interior_radius_reduce_f * interior_radius_reduce_f);
-        float inside_d = RoundedRectSDF(dst_posf, dst_centerf, interior_half_size - softness_padding, interior_corner_radius);
+        vec2 interior_half_size = vsi.dst_half_size - vec2(vsi.border_thickness);
+        float interior_radius_reduce_f = min(interior_half_size.x/vsi.dst_half_size.x, interior_half_size.y/vsi.dst_half_size.y);
+        float interior_corner_radius = (vsi.corner_radius * interior_radius_reduce_f * interior_radius_reduce_f);
+        float inside_d = RoundedRectSDF(vsi.dst_pos, vsi.dst_center, interior_half_size - softness_padding, interior_corner_radius);
         float inside_f = smoothstep(0, 2*softness, inside_d);
         border_factor = inside_f;
     }
@@ -487,3 +507,7 @@ grend_init :: () {
 
 }
 
+
+grend_push_quad :: (q : QuadInstance) {
+    array_add(*grc.quads, q);
+}
