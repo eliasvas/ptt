@@ -202,7 +202,7 @@ gwin_update :: (win : *gWin) {
     glClearColor(0.2, 0.2, 0.2, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    draw_sample_sphere_in_position(.{0,0,-30});
+    //draw_sample_sphere_in_position(.{0,0,-30});
 
     //draw UI
     glBindVertexArray(grc.ui_vao);
@@ -211,7 +211,7 @@ gwin_update :: (win : *gWin) {
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
     glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
     glUniform1i(glGetUniformLocation(grc.shader_program_ui, "tex"), 0);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx 2);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx 3);
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -264,11 +264,23 @@ layout (location = 1) in vec2 p1;
 layout (location = 2) in vec2 t0;
 layout (location = 3) in vec2 t1;
 layout (location = 4) in vec4 color[4];
+layout (location = 8) in float corner_radius;
+layout (location = 9) in float edge_softness;
+layout (location = 10) in float border_thickness;
 
 uniform vec2 res;
 
 out vec4 col;
 out vec2 tc;
+
+out vec2 dst_posf;
+out vec2 dst_centerf;
+out vec2 dst_half_sizef;
+//should corner radius be remapped to [0-1]?
+out float corner_radiusf;
+out float edge_softnessf;
+out float border_thicknessf;
+
 uniform sampler2D tex;
 
 vec2 vertices[] = {
@@ -292,20 +304,65 @@ void main()
     vec2 tex_pos = vertices[gl_VertexID] * tex_half_size + tex_center;
     tc = vec2(2 * tex_pos.x / textureSize(tex,0).x, 2 * tex_pos.y / textureSize(tex,0).y);
     col = color[gl_VertexID];
+
+    dst_posf = dst_pos;
+    dst_centerf = dst_center;
+    dst_half_sizef = dst_half_size;
+    corner_radiusf = corner_radius; 
+    edge_softnessf = edge_softness;
+    border_thicknessf = border_thickness;
 } 
 END
 fragment_shader_ui_source :: #string END
 #version 330 core
 out vec4 FragColor;
-  
+
+float RoundedRectSDF(vec2 sample_pos,
+                     vec2 rect_center,
+                     vec2 rect_half_size,
+                     float r)
+{
+  vec2 d2 = (abs(rect_center - sample_pos) -
+             rect_half_size +
+             vec2(r, r));
+  return min(max(d2.x, d2.y), 0.0) + length(max(d2, 0.0)) - r;
+}  
+
+//TODO: put all these in uniforms in a fucking struct
 in vec4 col;
 in vec2 tc;
+
+in vec2 dst_posf;
+in vec2 dst_centerf;
+in vec2 dst_half_sizef;
+in float corner_radiusf;
+in float edge_softnessf;
+in float border_thicknessf;
 
 uniform sampler2D tex;
 
 void main()
 {
-    FragColor = texture(tex, tc) * col;
+    float softness = edge_softnessf;
+    vec2 softness_padding = vec2(max(0, softness*2-1), max(0, softness*2-1));
+    // sample distance
+    float dist = RoundedRectSDF(dst_posf, dst_centerf, dst_half_sizef-softness_padding, corner_radiusf);
+    // map distance => a blend factor
+    float sdf_factor = 1.0 - smoothstep(0, 2*softness, dist);
+    //calculate the border factor
+    float border_factor = 1.f;
+    if(border_thicknessf != 0)
+    {
+        vec2 interior_half_size = dst_half_sizef - vec2(border_thicknessf);
+        float interior_radius_reduce_f = min(interior_half_size.x/dst_half_sizef.x, interior_half_size.y/dst_half_sizef.y);
+        float interior_corner_radius = (corner_radiusf * interior_radius_reduce_f * interior_radius_reduce_f);
+        float inside_d = RoundedRectSDF(dst_posf, dst_centerf, interior_half_size - softness_padding, interior_corner_radius);
+        float inside_f = smoothstep(0, 2*softness, inside_d);
+        border_factor = inside_f;
+    }
+    // use sdf_factor in final color calculation
+    FragColor = texture(tex, tc) * col * sdf_factor * border_factor;
+    if (FragColor.a < 0.4)discard; //TODO: something is up with OpenGL blending and it doesnt blend perfectly correct fragments
 }
 END
 
@@ -319,11 +376,16 @@ QuadInstance :: struct {
     col1 : gVec4;
     col2 : gVec4;
     col3 : gVec4;
+    corner_radius : float;
+    edge_softness : float;
+    border_thickness : float;
 }
 
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
     glEnable(GL_DEPTH_TEST);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
 
     //should there be like, a reset vao so we can re-use
     //the same vao for ALL rendering?
@@ -369,7 +431,7 @@ grend_init :: () {
     grc.shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
     glGenVertexArrays(1, *grc.ui_vao);
     glBindVertexArray(grc.ui_vao);
-    offsets :: QuadInstance.[ .{.{0,0},.{300,300}, .{0,0}, .{400,400},.{1,0,0,1},.{0,1,0,1},.{0,0,1,1},.{0,0,0,1}}, .{.{300,300},.{400,400}, .{0,0}, .{200,400},.{1,0,1,1}, .{1,0,1,1},.{1,1,1,1},.{1,1,1,1}}];
+    offsets :: QuadInstance.[ .{.{0,0},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,10,10.0},.{.{0,0},.{300,300}, .{0,0}, .{400,400},.{1,0,0,1},.{0,1,0,1},.{0,0,1,1},.{0,0,0,1},10,10,0}, .{.{300,300},.{400,400}, .{0,0}, .{200,400},.{1,0,1,1}, .{1,0,1,1},.{1,1,1,1},.{1,1,1,1},4,0,0}];
     glGenBuffers(1, *grc.ui_instance_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, grc.ui_instance_vbo);
     glBufferData(GL_ARRAY_BUFFER, offsets.count * size_of(QuadInstance),offsets.data, GL_STREAM_DRAW);
@@ -397,6 +459,15 @@ grend_init :: () {
     glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col3));
     glVertexAttribDivisor(7, 1);
     glEnableVertexAttribArray(7);
+    glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code corner_radius));
+    glVertexAttribDivisor(8, 1);
+    glEnableVertexAttribArray(8);
+    glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code edge_softness));
+    glVertexAttribDivisor(9, 1);
+    glEnableVertexAttribArray(9);
+    glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code border_thickness));
+    glVertexAttribDivisor(10, 1);
+    glEnableVertexAttribArray(10);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
