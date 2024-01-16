@@ -2,8 +2,12 @@
 #import "Input";
 #import "System";
 #import "Math";
+
+//These are the renderer's dependencies!
 #import "GL";
 #import "SDL";
+//#import "stb_image";
+#import "freetype-2.12.1";
 
 //TODO: we need to emulate OpenGL state machine, to be able to discard VAOs and infer glVertexAttribPointers
 //so we can just bind VBO/IBOs and set correct state / have a pipeline, and not mess with UGLY opengl state machine stuff.
@@ -27,7 +31,6 @@ gRendContext :: struct {
     white_tex : gTextureData;
     white_gl_tex : GLuint;
     //+ a command buffer?!
-    quads : [..] QuadInstance;
 }
 
 //NOTE: Should this be called render DEVICE instead of Context?
@@ -177,7 +180,7 @@ draw_sample_sphere_in_position :: (pos : gVec3){
     glUniformMatrix4fv(glGetUniformLocation(grc.shader_program_3D, "proj"),1, GL_FALSE, xx *ortho_mat);
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
     glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
-    glUniform1i(glGetUniformLocation(grc.shader_program_3D, "tex"), 0);
+    glUniform1i(glGetUniformLocation(grc.shader_program_3D, "tex[0]"), 0);
     glUniform1f(glGetUniformLocation(grc.shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
     //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
@@ -204,29 +207,8 @@ gwin_update :: (win : *gWin) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //draw_sample_sphere_in_position(.{0,0,-30});
+    gbatch_renderer_2d_render(win);
 
-    //draw UI
-
-    grend_push_quad(.{.{0,0},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,10,10.0});
-    grend_push_quad(.{.{0,0},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,10,0.0});
-
-    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{200,300},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},50,5,0});
-
-    glBindVertexArray(grc.ui_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, grc.ui_instance_vbo);
-    glBufferData(GL_ARRAY_BUFFER, grc.quads.count * size_of(QuadInstance),grc.quads.data, GL_STREAM_DRAW);
-
-    glUseProgram(grc.shader_program_ui);
-    glUniform2f(glGetUniformLocation(grc.shader_program_ui, "res"), xx win.dim.x, xx win.dim.y);
-    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
-    glUniform1i(glGetUniformLocation(grc.shader_program_ui, "tex"), 0);
-
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx 3);
-
-    //after drawing clear the quad array 
-    //FIXME: this doesnt clean up, meaning the memory is still tehre
-    grc.quads.count = 0;
     SDL_GL_SwapWindow(win.window);
 }
 
@@ -271,141 +253,12 @@ void main()
 }
 END
 
-vertex_shader_ui_source :: #string END
-#version 330 core
-layout (location = 0) in vec2 p0;
-layout (location = 1) in vec2 p1;
-layout (location = 2) in vec2 t0;
-layout (location = 3) in vec2 t1;
-layout (location = 4) in vec4 color[4];
-layout (location = 8) in float corner_radius;
-layout (location = 9) in float edge_softness;
-layout (location = 10) in float border_thickness;
-
-uniform vec2 res;
-
-out vec4 col;
-out vec2 tc;
-
-out VSI{
-    vec4 color; //send color to next stage
-    vec2 dst_pos;
-    vec2 dst_center;
-    vec2 dst_half_size;
-    //should corner radius + softness be remapped to [0-1]? I should look better into the math at some point
-    float corner_radius;
-    float edge_softness;
-    float border_thickness;
-}vsi;
-uniform sampler2D tex;
-
-vec2 vertices[] = {
-    vec2(-1.0, -1.0),
-    vec2(-1.0, +1.0),
-    vec2(+1.0, -1.0),
-    vec2(+1.0, +1.0),
-};
-
-
-void main()
-{
-    vec2 dst_half_size = (p1 - p0) / 2;
-    vec2 dst_center = (p1 + p0) / 2;
-    vec2 dst_pos = vertices[gl_VertexID] * dst_half_size + dst_center;
-    gl_Position = vec4(2 * dst_pos.x / res.x - 1, 2 * dst_pos.y / res.y - 1, 0.0, 1.0);
-    gl_Position.y *= -1.0;
-
-    vec2 tex_half_size = (t1 - t0) / 2;
-    vec2 tex_center = (t1 + t0) / 2;
-    vec2 tex_pos = vertices[gl_VertexID] * tex_half_size + tex_center;
-    tc = vec2(2 * tex_pos.x / textureSize(tex,0).x, 2 * tex_pos.y / textureSize(tex,0).y);
-    col = color[gl_VertexID];
-
-    vsi.dst_pos = dst_pos;
-    vsi.dst_center = dst_center;
-    vsi.dst_half_size = dst_half_size;
-    vsi.corner_radius = corner_radius; 
-    vsi.edge_softness = edge_softness;
-    vsi.border_thickness = border_thickness;
-} 
-END
-fragment_shader_ui_source :: #string END
-#version 330 core
-out vec4 FragColor;
-
-float RoundedRectSDF(vec2 sample_pos,
-                     vec2 rect_center,
-                     vec2 rect_half_size,
-                     float r)
-{
-  vec2 d2 = (abs(rect_center - sample_pos) -
-             rect_half_size +
-             vec2(r, r));
-  return min(max(d2.x, d2.y), 0.0) + length(max(d2, 0.0)) - r;
-}  
-
-//TODO: put all these in uniforms in a fucking struct
-in vec4 col;
-in vec2 tc;
-
-in VSI {
-    vec4 color; //send color to next stage
-    vec2 dst_pos;
-    vec2 dst_center;
-    vec2 dst_half_size;
-    //should corner radius + softness be remapped to [0-1]? I should look better into the math at some point
-    float corner_radius;
-    float edge_softness;
-    float border_thickness;
-}vsi;
-uniform sampler2D tex;
-
-
-void main()
-{
-    float softness = vsi.edge_softness;
-    vec2 softness_padding = vec2(max(0, softness*2-1), max(0, softness*2-1));
-    // sample distance
-    float dist = RoundedRectSDF(vsi.dst_pos, vsi.dst_center, vsi.dst_half_size - softness_padding, vsi.corner_radius);
-    // map distance => a blend factor
-    float sdf_factor = 1.0 - smoothstep(0, 2*softness, dist);
-    //calculate the border factor
-    float border_factor = 1.f;
-    if(vsi.border_thickness != 0)
-    {
-        vec2 interior_half_size = vsi.dst_half_size - vec2(vsi.border_thickness);
-        float interior_radius_reduce_f = min(interior_half_size.x/vsi.dst_half_size.x, interior_half_size.y/vsi.dst_half_size.y);
-        float interior_corner_radius = (vsi.corner_radius * interior_radius_reduce_f * interior_radius_reduce_f);
-        float inside_d = RoundedRectSDF(vsi.dst_pos, vsi.dst_center, interior_half_size - softness_padding, interior_corner_radius);
-        float inside_f = smoothstep(0, 2*softness, inside_d);
-        border_factor = inside_f;
-    }
-    // use sdf_factor in final color calculation
-    FragColor = texture(tex, tc) * col * sdf_factor * border_factor;
-    if (FragColor.a < 0.4)discard; //TODO: something is up with OpenGL blending and it doesnt blend perfectly correct fragments
-}
-END
-
-
-QuadInstance :: struct {
-    p0  : gVec2; //position in window coords
-    p1  : gVec2;
-    t0  : gVec2; //tex coord in texture's units
-    t1  : gVec2;
-    col0 : gVec4;
-    col1 : gVec4;
-    col2 : gVec4;
-    col3 : gVec4;
-    corner_radius : float;
-    edge_softness : float;
-    border_thickness : float;
-}
-
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
+    gbatch_renderer_2d_init();
 
     //should there be like, a reset vao so we can re-use
     //the same vao for ALL rendering?
@@ -451,43 +304,44 @@ grend_init :: () {
     grc.shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
     glGenVertexArrays(1, *grc.ui_vao);
     glBindVertexArray(grc.ui_vao);
-    offsets :: QuadInstance.[ .{.{0,0},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,10,10.0},.{.{0,0},.{300,300}, .{0,0}, .{400,400},.{1,0,0,1},.{0,1,0,1},.{0,0,1,1},.{0,0,0,1},10,10,0}, .{.{300,300},.{400,400}, .{0,0}, .{200,400},.{1,0,1,1}, .{1,0,1,1},.{1,1,1,1},.{1,1,1,1},4,0,0}];
     glGenBuffers(1, *grc.ui_instance_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, grc.ui_instance_vbo);
-    glBufferData(GL_ARRAY_BUFFER, offsets.count * size_of(QuadInstance),offsets.data, GL_STREAM_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code p0));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0));
     glVertexAttribDivisor(0, 1);
     glEnableVertexAttribArray(0); 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code p1));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1));
     glVertexAttribDivisor(1, 1);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code t0));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0));
     glVertexAttribDivisor(2, 1);
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code t1));
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1));
     glVertexAttribDivisor(3, 1);
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col0));
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0));
     glVertexAttribDivisor(4, 1);
     glEnableVertexAttribArray(4);
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col1));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1));
     glVertexAttribDivisor(5, 1);
     glEnableVertexAttribArray(5);
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col2));
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2));
     glVertexAttribDivisor(6, 1);
     glEnableVertexAttribArray(6);
-    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code col3));
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3));
     glVertexAttribDivisor(7, 1);
     glEnableVertexAttribArray(7);
-    glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code corner_radius));
+    glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius));
     glVertexAttribDivisor(8, 1);
     glEnableVertexAttribArray(8);
-    glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code edge_softness));
+    glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness));
     glVertexAttribDivisor(9, 1);
     glEnableVertexAttribArray(9);
-    glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(QuadInstance), xx offset_of(QuadInstance, #code border_thickness));
+    glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness));
     glVertexAttribDivisor(10, 1);
     glEnableVertexAttribArray(10);
+    glVertexAttribIPointer(11, 1, GL_UNSIGNED_INT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code type));
+    glVertexAttribDivisor(11, 1);
+    glEnableVertexAttribArray(11);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -503,11 +357,252 @@ grend_init :: () {
     //the texture data is in GPU memory via glTexImage2D, we can free after
     defer free(grc.white_tex.data);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, grc.white_tex.data);
-    //glGenerateMipmap(GL_TEXTURE_2D);
+    glGenerateMipmap(GL_TEXTURE_2D);
 
 }
 
 
-grend_push_quad :: (q : QuadInstance) {
-    array_add(*grc.quads, q);
+grend_push_quad :: (q : gQuadInstance) {
+    array_add(*gr2D.quads, q);
 }
+
+
+//---------------------------------
+//--------2D BATCH RENDERER--------
+//---------------------------------
+
+
+//The concept is as follows: We got a shader that renders colored rects, font and misc. icons.
+//There are QuadInstances, containing all the info to render one of the three, each quad instance has
+//a tex_index, meaning which of the 3 to texture, all other parameters are the same
+//TODO: maybe we should just assign one texture, and each time it changes to flush the command queue??
+
+gr2D : gBatchRenderer2D;
+
+gBatchRenderer2D :: struct {
+    quads : [..] gQuadInstance;
+
+    //OpenGL garbo
+    vao : GLuint;
+    vbo : GLuint;
+    sp : GLuint;
+}
+gQuadType :: enum u32 {
+    RECT; // 0
+    FONT; // 1
+    ICON; // 2
+}
+
+gQuadInstance :: struct {
+    p0  : gVec2; //position in window coords
+    p1  : gVec2;
+    t0  : gVec2; //tex coord in texture's units
+    t1  : gVec2;
+    col0 : gVec4;
+    col1 : gVec4;
+    col2 : gVec4;
+    col3 : gVec4;
+    corner_radius : float;
+    edge_softness : float;
+    border_thickness : float;
+    type : gQuadType;
+}
+
+gbatch_renderer_2d_init :: () {
+    gr2D.sp = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
+    glGenVertexArrays(1, *gr2D.vao);
+    glBindVertexArray(gr2D.vao);
+    glGenBuffers(1, *gr2D.vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0));
+    glVertexAttribDivisor(0, 1);
+    glEnableVertexAttribArray(0); 
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1));
+    glVertexAttribDivisor(1, 1);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0));
+    glVertexAttribDivisor(2, 1);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1));
+    glVertexAttribDivisor(3, 1);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0));
+    glVertexAttribDivisor(4, 1);
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1));
+    glVertexAttribDivisor(5, 1);
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2));
+    glVertexAttribDivisor(6, 1);
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3));
+    glVertexAttribDivisor(7, 1);
+    glEnableVertexAttribArray(7);
+    glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius));
+    glVertexAttribDivisor(8, 1);
+    glEnableVertexAttribArray(8);
+    glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness));
+    glVertexAttribDivisor(9, 1);
+    glEnableVertexAttribArray(9);
+    glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness));
+    glVertexAttribDivisor(10, 1);
+    glEnableVertexAttribArray(10);
+    glVertexAttribIPointer(11, 1, GL_UNSIGNED_INT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code type));
+    glVertexAttribDivisor(11, 1);
+    glEnableVertexAttribArray(11);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+}
+
+gbatch_renderer_2d_render :: (win : *gWin) {
+
+    glDisable(GL_DEPTH_TEST);
+    grend_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0, .RECT});
+    grend_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0, .FONT});
+
+    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{200,300},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},20,5,0, .RECT});
+
+    glBindVertexArray(gr2D.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
+    glBufferData(GL_ARRAY_BUFFER, gr2D.quads.count * size_of(gQuadInstance),gr2D.quads.data, GL_STREAM_DRAW);
+
+    glUseProgram(gr2D.sp);
+    glUniform2f(glGetUniformLocation(gr2D.sp, "res"), xx win.dim.x, xx win.dim.y);
+    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
+    glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
+    glUniform1i(glGetUniformLocation(gr2D.sp, "tex[0]"), 0);
+    glActiveTexture(GL_TEXTURE0 + 1);//activate texture unit 1 before binding the texture
+    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
+    glUniform1i(glGetUniformLocation(gr2D.sp, "tex[1]"), 1);
+    glActiveTexture(GL_TEXTURE0 + 2);//activate texture unit 2 before binding the texture
+    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
+    glUniform1i(glGetUniformLocation(gr2D.sp, "tex[2]"), 2);
+
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
+    glEnable(GL_DEPTH_TEST);
+
+    //after drawing clear the quad array 
+    //FIXME: this doesnt clean up, meaning the memory is still tehre
+    gr2D.quads.count = 0;
+
+}
+
+vertex_shader_ui_source :: #string END
+#version 330 core
+layout (location = 0) in vec2 p0;
+layout (location = 1) in vec2 p1;
+layout (location = 2) in vec2 t0;
+layout (location = 3) in vec2 t1;
+layout (location = 4) in vec4 color[4];
+layout (location = 8) in float corner_radius;
+layout (location = 9) in float edge_softness;
+layout (location = 10) in float border_thickness;
+layout (location = 11) in uint tex_index;
+
+uniform vec2 res;
+
+out vec4 col;
+out vec2 tc;
+
+out VSI{
+    vec4 color; //send color to next stage
+    vec2 dst_pos;
+    vec2 dst_center;
+    vec2 dst_half_size;
+    //should corner radius + softness be remapped to [0-1]? I should look better into the math at some point
+    float corner_radius;
+    float edge_softness;
+    float border_thickness;
+    flat uint tex_index;
+}vsi;
+uniform sampler2D tex[3];
+
+vec2 vertices[] = {
+    vec2(-1.0, -1.0),
+    vec2(-1.0, +1.0),
+    vec2(+1.0, -1.0),
+    vec2(+1.0, +1.0),
+};
+
+
+void main()
+{
+    vec2 dst_half_size = (p1 - p0) / 2;
+    vec2 dst_center = (p1 + p0) / 2;
+    vec2 dst_pos = vertices[gl_VertexID] * dst_half_size + dst_center;
+    gl_Position = vec4(2 * dst_pos.x / res.x - 1, 2 * dst_pos.y / res.y - 1, 0.0, 1.0);
+    gl_Position.y *= -1.0;
+
+    vec2 tex_half_size = (t1 - t0) / 2;
+    vec2 tex_center = (t1 + t0) / 2;
+    vec2 tex_pos = vertices[gl_VertexID] * tex_half_size + tex_center;
+    tc = vec2(2 * tex_pos.x / textureSize(tex[tex_index],0).x, 2 * tex_pos.y / textureSize(tex[tex_index],0).y);
+    col = color[gl_VertexID];
+
+    vsi.dst_pos = dst_pos;
+    vsi.dst_center = dst_center;
+    vsi.dst_half_size = dst_half_size;
+    vsi.corner_radius = corner_radius; 
+    vsi.edge_softness = edge_softness;
+    vsi.border_thickness = border_thickness;
+    vsi.tex_index = tex_index;
+} 
+END
+fragment_shader_ui_source :: #string END
+#version 330 core
+out vec4 FragColor;
+
+float RoundedRectSDF(vec2 sample_pos,
+                     vec2 rect_center,
+                     vec2 rect_half_size,
+                     float r)
+{
+  vec2 d2 = (abs(rect_center - sample_pos) -
+             rect_half_size +
+             vec2(r, r));
+  return min(max(d2.x, d2.y), 0.0) + length(max(d2, 0.0)) - r;
+}  
+
+//TODO: put all these in uniforms in a fucking struct
+in vec4 col;
+in vec2 tc;
+
+in VSI {
+    vec4 color; //send color to next stage
+    vec2 dst_pos;
+    vec2 dst_center;
+    vec2 dst_half_size;
+    //should corner radius + softness be remapped to [0-1]? I should look better into the math at some point
+    float corner_radius;
+    float edge_softness;
+    float border_thickness;
+    flat uint tex_index;
+}vsi;
+uniform sampler2D tex[3];
+
+
+void main()
+{
+    float softness = vsi.edge_softness;
+    vec2 softness_padding = vec2(max(0, softness*2-1), max(0, softness*2-1));
+    // sample distance
+    float dist = RoundedRectSDF(vsi.dst_pos, vsi.dst_center, vsi.dst_half_size - softness_padding, vsi.corner_radius);
+    // map distance => a blend factor
+    float sdf_factor = 1.0 - smoothstep(0, 2*softness, dist);
+    //calculate the border factor
+    float border_factor = 1.f;
+    // if(vsi.border_thickness != 0)
+    // {
+    //     vec2 interior_half_size = vsi.dst_half_size - vec2(vsi.border_thickness);
+    //     float interior_radius_reduce_f = min(interior_half_size.x/vsi.dst_half_size.x, interior_half_size.y/vsi.dst_half_size.y);
+    //     float interior_corner_radius = (vsi.corner_radius * interior_radius_reduce_f * interior_radius_reduce_f);
+    //     float inside_d = RoundedRectSDF(vsi.dst_pos, vsi.dst_center, interior_half_size - softness_padding, interior_corner_radius);
+    //     float inside_f = smoothstep(0, 2*softness, inside_d);
+    //     border_factor = inside_f;
+    // }
+    // use sdf_factor in final color calculation
+    FragColor = texture(tex[vsi.tex_index], tc) * col * sdf_factor * border_factor;
+}
+END
+
