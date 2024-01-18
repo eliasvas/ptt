@@ -2,12 +2,9 @@
 #import "Input";
 #import "System";
 #import "Math";
-
 //These are the renderer's dependencies!
 #import "GL";
 #import "SDL";
-//#import "stb_image";
-#import "freetype-2.12.1";
 
 //TODO: we need to emulate OpenGL state machine, to be able to discard VAOs and infer glVertexAttribPointers
 //so we can just bind VBO/IBOs and set correct state / have a pipeline, and not mess with UGLY opengl state machine stuff.
@@ -21,15 +18,14 @@ gRendContext :: struct {
     sphere_vao : GLuint;
     sphere_vbo : GLuint;
     sphere_ibo : GLuint;
+
     debug_tex : gTextureData;
     debug_gl_tex : GLuint;
 
-    shader_program_ui : GLuint;
-    ui_vao : GLuint;
-    //ui_vbo : GLuint;
-    ui_instance_vbo : GLuint;
     white_tex : gTextureData;
     white_gl_tex : GLuint;
+
+    ttf_gl_tex : GLuint;
     //+ a command buffer?!
 }
 
@@ -255,6 +251,7 @@ END
 
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
+    ft_init();
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
@@ -300,52 +297,6 @@ grend_init :: () {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, grc.debug_tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    //quad initialization
-    grc.shader_program_ui = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
-    glGenVertexArrays(1, *grc.ui_vao);
-    glBindVertexArray(grc.ui_vao);
-    glGenBuffers(1, *grc.ui_instance_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, grc.ui_instance_vbo);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0));
-    glVertexAttribDivisor(0, 1);
-    glEnableVertexAttribArray(0); 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1));
-    glVertexAttribDivisor(1, 1);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0));
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1));
-    glVertexAttribDivisor(3, 1);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0));
-    glVertexAttribDivisor(4, 1);
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1));
-    glVertexAttribDivisor(5, 1);
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2));
-    glVertexAttribDivisor(6, 1);
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3));
-    glVertexAttribDivisor(7, 1);
-    glEnableVertexAttribArray(7);
-    glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius));
-    glVertexAttribDivisor(8, 1);
-    glEnableVertexAttribArray(8);
-    glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness));
-    glVertexAttribDivisor(9, 1);
-    glEnableVertexAttribArray(9);
-    glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness));
-    glVertexAttribDivisor(10, 1);
-    glEnableVertexAttribArray(10);
-    glVertexAttribIPointer(11, 1, GL_UNSIGNED_INT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code type));
-    glVertexAttribDivisor(11, 1);
-    glEnableVertexAttribArray(11);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-
     //white texture initialization
     glGenTextures(1, *grc.white_gl_tex);
     glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
@@ -359,6 +310,21 @@ grend_init :: () {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, grc.white_tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
+
+    //Font initialization
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
+    bitmap, tw, th, tl, tt := gfont_get_bitmap_for_character(99);
+    defer array_free(bitmap);
+    glGenTextures(1, *grc.ttf_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.ttf_gl_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tw, th, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap.data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    grend_push_quad(.{.{500,500},.{xx(500 + tw * 4),xx(500 + th * 4)}, .{0,0}, .{xx (tw/2),xx (th/2)},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},0,0,0, .FONT});
 }
 
 
@@ -375,7 +341,8 @@ grend_push_quad :: (q : gQuadInstance) {
 //The concept is as follows: We got a shader that renders colored rects, font and misc. icons.
 //There are QuadInstances, containing all the info to render one of the three, each quad instance has
 //a tex_index, meaning which of the 3 to texture, all other parameters are the same
-//TODO: maybe we should just assign one texture, and each time it changes to flush the command queue??
+//TODO: maybe we should just assign one texture (via function or something), 
+//and each time it changes to flush the command queue?? so glyph rendering will be FAST
 
 gr2D : gBatchRenderer2D;
 
@@ -387,6 +354,8 @@ gBatchRenderer2D :: struct {
     vbo : GLuint;
     sp : GLuint;
 }
+
+//This is the texture index
 gQuadType :: enum u32 {
     RECT; // 0
     FONT; // 1
@@ -459,9 +428,9 @@ gbatch_renderer_2d_render :: (win : *gWin) {
 
     glDisable(GL_DEPTH_TEST);
     grend_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0, .RECT});
-    grend_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0, .FONT});
+    grend_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0, .ICON});
 
-    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{200,300},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},20,5,0, .RECT});
+    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{200,300},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},20,5,0, .ICON});
 
     glBindVertexArray(gr2D.vao);
     glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
@@ -473,7 +442,7 @@ gbatch_renderer_2d_render :: (win : *gWin) {
     glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[0]"), 0);
     glActiveTexture(GL_TEXTURE0 + 1);//activate texture unit 1 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.ttf_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[1]"), 1);
     glActiveTexture(GL_TEXTURE0 + 2);//activate texture unit 2 before binding the texture
     glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
@@ -484,7 +453,7 @@ gbatch_renderer_2d_render :: (win : *gWin) {
 
     //after drawing clear the quad array 
     //FIXME: this doesnt clean up, meaning the memory is still tehre
-    gr2D.quads.count = 0;
+    //gr2D.quads.count = 0;
 
 }
 
