@@ -61,7 +61,7 @@ gfont_get_glyph_for_character :: (face : FT_Face, c : u8) -> gFontGlyphLoose {
 gFontGlyph :: struct {
     c : u8;// this is not really neaded
     size_x, size_y : u32; //size of glyph in pixels
-    brearing_x, bearing_y : s32; //offset to left_top coord of glyph
+    bearing_x, bearing_y : s32; //offset to left_top coord of glyph
     advance : s32; //how much to advance to put the next glyph
 };
 
@@ -92,10 +92,19 @@ gfont_generate_atlas :: (loose_glyphs : [] gFontGlyphLoose) {
     sum_advance := 0;
     for i : 0..loose_glyphs.count-1 {
         for y : 0..max(loose_glyphs[i].size_y,1)-1 {
-            memcpy(dest = *gfont_atlas.bitmap[sum_advance + y * sum_x], source = *loose_glyphs[i].bitmap[y * loose_glyphs[i].size_x], count = loose_glyphs[i].size_x);
+            memcpy(dest = *gfont_atlas.bitmap[sum_advance + (loose_glyphs[i].size_y-y) * sum_x], source = *loose_glyphs[i].bitmap[y * loose_glyphs[i].size_x], count = loose_glyphs[i].size_x);
         }
         sum_advance += loose_glyphs[i].size_x;
     }
     //2. put correct gFontGlyph's in the same-indexed array 
+    sum_advance = 0;
+    for i : 0..loose_glyphs.count-1 {
+        gfont_atlas.glyphs[i] = .{loose_glyphs[i].c, loose_glyphs[i].size_x, loose_glyphs[i].size_y, xx(loose_glyphs[i].bearing_x + sum_advance), loose_glyphs[i].bearing_y, loose_glyphs[i].advance};
+        sum_advance += loose_glyphs[i].size_x;
+    }
     print("Font Altas generation Done [%ms]\n", (get_time()-start)*1000);
+}
+
+gfont_atlas_get_glyph_for_character :: (c : u8) -> gFontGlyph {
+    return gfont_atlas.glyphs[xx c];
 }

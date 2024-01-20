@@ -345,6 +345,7 @@ grend_init :: () {
 
 
 grend_push_quad :: (q : gQuadInstance) {
+    print("Quad pushed: %\n", q);
     array_add(*gr2D.quads, q);
 }
 
@@ -446,7 +447,10 @@ gbatch_renderer_2d_render :: (win : *gWin) {
     grend_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0, .RECT});
     grend_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0, .ICON});
 
-    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{20,30},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},20,5,0, .ICON});
+    glyph := gfont_atlas_get_glyph_for_character(99);
+    scale := 5.0;
+    print("glyph A : %\n",glyph);
+    grend_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.bearing_x, xx glyph.bearing_y}, .{xx (glyph.bearing_x + xx glyph.size_x), xx (glyph.bearing_y - xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0, .FONT});
 
     glBindVertexArray(gr2D.vao);
     glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
@@ -461,7 +465,7 @@ gbatch_renderer_2d_render :: (win : *gWin) {
     glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[1]"), 1);
     glActiveTexture(GL_TEXTURE0 + 2);//activate texture unit 2 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[2]"), 2);
 
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
