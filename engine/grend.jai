@@ -25,7 +25,7 @@ gRendContext :: struct {
     white_tex : gTextureData;
     white_gl_tex : GLuint;
 
-    ttf_gl_tex : GLuint;
+    font_gl_tex : GLuint;
     //+ a command buffer?!
 }
 
@@ -311,20 +311,36 @@ grend_init :: () {
     glGenerateMipmap(GL_TEXTURE_2D);
 
 
-    //Font initialization
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
-    bitmap, tw, th, tl, tt := gfont_get_bitmap_for_character(99);
-    defer array_free(bitmap);
-    glGenTextures(1, *grc.ttf_gl_tex);
-    glBindTexture(GL_TEXTURE_2D, grc.ttf_gl_tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    //font atlas initialization
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glGenTextures(1, *grc.font_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tw, th, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap.data);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx gfont_atlas.size_x, xx gfont_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, gfont_atlas.bitmap);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    grend_push_quad(.{.{500,500},.{xx(500 + tw * 4),xx(500 + th * 4)}, .{0,0}, .{xx (tw/2),xx (th/2)},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},0,0,0, .FONT});
+
+    //Font initialization
+    // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
+    //bitmap, tw, th, tl, tt := gfunt_get_bitmap_for_character(99);
+    // defer array_free(bitmap);
+    // glGenTextures(1, *grc.ttf_gl_tex);
+    // glBindTexture(GL_TEXTURE_2D, grc.ttf_gl_tex);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tw, th, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap.data);
+    // glGenerateMipmap(GL_TEXTURE_2D);
+
+    // grend_push_quad(.{.{500,500},.{xx(500 + tw * 4),xx(500 + th * 4)}, .{0,0}, .{xx (tw),xx (th)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0, .FONT});
 }
 
 
@@ -430,7 +446,7 @@ gbatch_renderer_2d_render :: (win : *gWin) {
     grend_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0, .RECT});
     grend_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0, .ICON});
 
-    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{200,300},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},20,5,0, .ICON});
+    grend_push_quad(.{.{300,100},.{500,200}, .{0,0}, .{20,30},.{0,0,0,1},.{1,0,0,1},.{0,0,0,1},.{1,0,0,1},20,5,0, .ICON});
 
     glBindVertexArray(gr2D.vao);
     glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
@@ -442,10 +458,10 @@ gbatch_renderer_2d_render :: (win : *gWin) {
     glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[0]"), 0);
     glActiveTexture(GL_TEXTURE0 + 1);//activate texture unit 1 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.ttf_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[1]"), 1);
     glActiveTexture(GL_TEXTURE0 + 2);//activate texture unit 2 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
+    glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
     glUniform1i(glGetUniformLocation(gr2D.sp, "tex[2]"), 2);
 
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
@@ -453,7 +469,7 @@ gbatch_renderer_2d_render :: (win : *gWin) {
 
     //after drawing clear the quad array 
     //FIXME: this doesnt clean up, meaning the memory is still tehre
-    //gr2D.quads.count = 0;
+    gr2D.quads.count = 0;
 
 }
 
@@ -506,7 +522,7 @@ void main()
     vec2 tex_half_size = (t1 - t0) / 2;
     vec2 tex_center = (t1 + t0) / 2;
     vec2 tex_pos = vertices[gl_VertexID] * tex_half_size + tex_center;
-    tc = vec2(2 * tex_pos.x / textureSize(tex[tex_index],0).x, 2 * tex_pos.y / textureSize(tex[tex_index],0).y);
+    tc = vec2(tex_pos.x / textureSize(tex[tex_index],0).x, tex_pos.y / textureSize(tex[tex_index],0).y);
     col = color[gl_VertexID];
 
     vsi.dst_pos = dst_pos;
