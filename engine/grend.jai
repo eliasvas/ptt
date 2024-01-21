@@ -26,23 +26,12 @@ gRendContext :: struct {
     white_gl_tex : GLuint;
 
     font_gl_tex : GLuint;
+    default_atlas : gFontAtlas;
     //+ a command buffer?!
 }
 
 //NOTE: Should this be called render DEVICE instead of Context?
 grc: gRendContext;
-gWin :: struct {
-    dim : gVec2;
-    opt : GWIN_OPT;
-    window : *SDL_Window;
-}
-
-GWIN_OPT :: enum {
-    NONE;
-    VISIBLE;
-    RESIZABLE;
-}
-
 
 //NOTE: YOU must free the data!
 gTextureData :: struct {
@@ -135,32 +124,7 @@ gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
 
     return sp, true;
 }
-
-
-gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
-    win : gWin = .{.{xx ww, xx wh}, opt, null};
-
-    
-    win.window = SDL_CreateWindow("Window",
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xx win.dim.x, xx win.dim.y,
-        SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
-
-    if win.window == null {
-        print("Could not create window: %\n", to_string(SDL_GetError()));
-    }else {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, xx SDL_GL_CONTEXT_PROFILE_CORE);
-
-        gl_context : SDL_GLContext = SDL_GL_CreateContext(win.window);
-        gl_load(*gl, SDL_GL_GetProcAddress);
-        //rdr := SDL_CreateRenderer( win.window, -1, 0);
-    }
-    print("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
-    print("GL Version = %\n", to_string(glGetString(GL_VERSION)));
-    return win;
-}
-  
+ 
 //Note: This is made just to check that 3D rendering works (jk)
 draw_sample_sphere_in_position :: (pos : gVec3){
     
@@ -184,35 +148,6 @@ draw_sample_sphere_in_position :: (pos : gVec3){
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
-
-gwin_update :: (win : *gWin) {
-    gwin_resize_if_necessary :: (win : *gWin) {
-        if ges.window_resized {
-            ww : s32;
-            wh : s32;
-            SDL_GetWindowSize(win.window,*ww,*wh);
-            win.dim.x = xx ww;
-            win.dim.y = xx wh;
-            print("New window size: [%,%]\n", win.dim.x, win.dim.y);
-        }
-    }
-    gwin_resize_if_necessary(win);
-    dt := ges.dt;
-    glViewport(0, 0, xx win.dim.x, xx win.dim.y);
-    glClearColor(0.1, 0.1, 0.1, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //draw_sample_sphere_in_position(.{0,0,-30});
-    gbatch_renderer_2d_render(win);
-
-    SDL_GL_SwapWindow(win.window);
-}
-
-gwin_cleanup :: (win : *gWin){
-    SDL_DestroyWindow(win.window);
-    memset(win, 0, size_of(gWin));
-}
-
 vertex_shader_3D_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;
@@ -251,7 +186,7 @@ END
 
 grend_init :: () {
     SDL_Init(SDL_INIT_VIDEO);
-    ft_init();
+    grc.default_atlas = gfont_atlas_generate();
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
@@ -323,9 +258,80 @@ grend_init :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx gfont_atlas.size_x, xx gfont_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, gfont_atlas.bitmap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, grc.default_atlas.bitmap);
     glGenerateMipmap(GL_TEXTURE_2D);
 }
+
+
+//---------------------------------
+//--------WINDOW ABSTRACTION-------
+//---------------------------------
+
+gWin :: struct {
+    dim : gVec2;
+    opt : GWIN_OPT;
+    window : *SDL_Window;
+}
+
+GWIN_OPT :: enum {
+    NONE;
+    VISIBLE;
+    RESIZABLE;
+}
+
+gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
+    win : gWin = .{.{xx ww, xx wh}, opt, null};
+
+    
+    sdl_win_args := SDL_WINDOW_OPENGL;
+    sdl_win_args |= ifx opt & .RESIZABLE then SDL_WINDOW_RESIZABLE;
+    sdl_win_args |= ifx opt & .VISIBLE then SDL_WINDOW_SHOWN;
+    win.window = SDL_CreateWindow("Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                                    xx win.dim.x, xx win.dim.y, sdl_win_args);
+
+    if win.window == null {
+        print("Could not create window: %\n", to_string(SDL_GetError()));
+    }else {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, xx SDL_GL_CONTEXT_PROFILE_CORE);
+
+        gl_context : SDL_GLContext = SDL_GL_CreateContext(win.window);
+        gl_load(*gl, SDL_GL_GetProcAddress);
+    }
+    print("GL Vendor = %\n", to_string(glGetString(GL_VENDOR)));
+    print("GL Version = %\n", to_string(glGetString(GL_VERSION)));
+    return win;
+}
+ 
+gwin_update :: (win : *gWin) {
+    gwin_resize_if_necessary :: (win : *gWin) {
+        if ges.window_resized {
+            ww : s32;
+            wh : s32;
+            SDL_GetWindowSize(win.window,*ww,*wh);
+            win.dim.x = xx ww;
+            win.dim.y = xx wh;
+            print("New window size: [%,%]\n", win.dim.x, win.dim.y);
+        }
+    }
+    gwin_resize_if_necessary(win);
+    dt := ges.dt;
+    glViewport(0, 0, xx win.dim.x, xx win.dim.y);
+    glClearColor(0.1, 0.1, 0.1, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //draw_sample_sphere_in_position(.{0,0,-30});
+    gbatch_renderer_2d_render(win);
+
+    SDL_GL_SwapWindow(win.window);
+}
+
+gwin_cleanup :: (win : *gWin){
+    SDL_DestroyWindow(win.window);
+    memset(win, 0, size_of(gWin));
+}
+
 
 
 //---------------------------------
@@ -416,8 +422,8 @@ gbatch_renderer_2d_render :: (win : *gWin) {
     gbatch_renderer_bind_texture(grc.debug_gl_tex, win);
     gbatch_renderer_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0});
     gbatch_renderer_bind_texture(grc.font_gl_tex, win);
-    glyph := gfont_atlas_get_glyph_for_character(101);
-    print("glyph A : %\n",glyph);
+    glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "a" + 1);
+    //print("glyph A : %\n",glyph);
     scale := 2.0;
     gbatch_renderer_bind_texture(grc.white_gl_tex, win);
     gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},0,0,0});
@@ -440,6 +446,9 @@ gbatch_renderer_flush :: (win : *gWin) {
 //TODO: make this engine texture, not OpenGL
 gbatch_renderer_bind_texture :: (tex : GLuint, win : *gWin) {
     if (tex != gr2D.last_bound_tex) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
+        glUniform1i(glGetUniformLocation(gr2D.sp, "tex"), 0);
         gbatch_renderer_flush(win);
     }
     gr2D.last_bound_tex = tex;
@@ -449,8 +458,9 @@ gbatch_renderer_bind_texture :: (tex : GLuint, win : *gWin) {
 
 }
 
-gbatch_renderer_push_quad :: (q : gQuadInstance) {
+gbatch_renderer_push_quad :: (q : gQuadInstance, tex : GLuint = 0) {
     //print("Quad pushed: %\n", q);
+    //if tex then gbatch_renderer_bind_texture(tex, win);
     array_add(*gr2D.quads, q);
 }
 
