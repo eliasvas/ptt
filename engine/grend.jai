@@ -319,34 +319,12 @@ grend_init :: () {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx gfont_atlas.size_x, xx gfont_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, gfont_atlas.bitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx gfont_atlas.size_x, xx gfont_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, gfont_atlas.bitmap);
     glGenerateMipmap(GL_TEXTURE_2D);
-
-
-    //Font initialization
-    // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
-    //bitmap, tw, th, tl, tt := gfunt_get_bitmap_for_character(99);
-    // defer array_free(bitmap);
-    // glGenTextures(1, *grc.ttf_gl_tex);
-    // glBindTexture(GL_TEXTURE_2D, grc.ttf_gl_tex);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tw, th, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap.data);
-    // glGenerateMipmap(GL_TEXTURE_2D);
-
-    // grend_push_quad(.{.{500,500},.{xx(500 + tw * 4),xx(500 + th * 4)}, .{0,0}, .{xx (tw),xx (th)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0, .FONT});
-}
-
-
-grend_push_quad :: (q : gQuadInstance) {
-    print("Quad pushed: %\n", q);
-    array_add(*gr2D.quads, q);
 }
 
 
@@ -354,12 +332,11 @@ grend_push_quad :: (q : gQuadInstance) {
 //--------2D BATCH RENDERER--------
 //---------------------------------
 
+//TODO: This should become a command buffer inside probably, with binding different textures and drawing
 
 //The concept is as follows: We got a shader that renders colored rects, font and misc. icons.
 //There are QuadInstances, containing all the info to render one of the three, each quad instance has
 //a tex_index, meaning which of the 3 to texture, all other parameters are the same
-//TODO: maybe we should just assign one texture (via function or something), 
-//and each time it changes to flush the command queue?? so glyph rendering will be FAST
 
 gr2D : gBatchRenderer2D;
 
@@ -370,13 +347,8 @@ gBatchRenderer2D :: struct {
     vao : GLuint;
     vbo : GLuint;
     sp : GLuint;
-}
 
-//This is the texture index
-gQuadType :: enum u32 {
-    RECT; // 0
-    FONT; // 1
-    ICON; // 2
+    last_bound_tex : GLuint;
 }
 
 gQuadInstance :: struct {
@@ -391,7 +363,6 @@ gQuadInstance :: struct {
     corner_radius : float;
     edge_softness : float;
     border_thickness : float;
-    type : gQuadType;
 }
 
 gbatch_renderer_2d_init :: () {
@@ -433,49 +404,56 @@ gbatch_renderer_2d_init :: () {
     glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness));
     glVertexAttribDivisor(10, 1);
     glEnableVertexAttribArray(10);
-    glVertexAttribIPointer(11, 1, GL_UNSIGNED_INT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code type));
-    glVertexAttribDivisor(11, 1);
-    glEnableVertexAttribArray(11);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 }
 
 gbatch_renderer_2d_render :: (win : *gWin) {
-
     glDisable(GL_DEPTH_TEST);
-    grend_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0, .RECT});
-    grend_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0, .ICON});
-
-    glyph := gfont_atlas_get_glyph_for_character(99);
-    scale := 5.0;
+    gbatch_renderer_bind_texture(grc.white_gl_tex, win);
+    gbatch_renderer_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0});
+    gbatch_renderer_bind_texture(grc.debug_gl_tex, win);
+    gbatch_renderer_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0});
+    gbatch_renderer_bind_texture(grc.font_gl_tex, win);
+    glyph := gfont_atlas_get_glyph_for_character(101);
     print("glyph A : %\n",glyph);
-    grend_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.bearing_x, xx glyph.bearing_y}, .{xx (glyph.bearing_x + xx glyph.size_x), xx (glyph.bearing_y - xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0, .FONT});
+    scale := 2.0;
+    gbatch_renderer_bind_texture(grc.white_gl_tex, win);
+    gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},0,0,0});
+    gbatch_renderer_bind_texture(grc.font_gl_tex, win);
+    gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
 
+    gbatch_renderer_flush(win);
+
+}
+
+gbatch_renderer_flush :: (win : *gWin) {
     glBindVertexArray(gr2D.vao);
     glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
     glBufferData(GL_ARRAY_BUFFER, gr2D.quads.count * size_of(gQuadInstance),gr2D.quads.data, GL_STREAM_DRAW);
-
     glUseProgram(gr2D.sp);
     glUniform2f(glGetUniformLocation(gr2D.sp, "res"), xx win.dim.x, xx win.dim.y);
-    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
-    glUniform1i(glGetUniformLocation(gr2D.sp, "tex[0]"), 0);
-    glActiveTexture(GL_TEXTURE0 + 1);//activate texture unit 1 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
-    glUniform1i(glGetUniformLocation(gr2D.sp, "tex[1]"), 1);
-    glActiveTexture(GL_TEXTURE0 + 2);//activate texture unit 2 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, grc.debug_gl_tex);
-    glUniform1i(glGetUniformLocation(gr2D.sp, "tex[2]"), 2);
-
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
-    glEnable(GL_DEPTH_TEST);
-
-    //after drawing clear the quad array 
-    //FIXME: this doesnt clean up, meaning the memory is still tehre
     gr2D.quads.count = 0;
+}
+//TODO: make this engine texture, not OpenGL
+gbatch_renderer_bind_texture :: (tex : GLuint, win : *gWin) {
+    if (tex != gr2D.last_bound_tex) {
+        gbatch_renderer_flush(win);
+    }
+    gr2D.last_bound_tex = tex;
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
+    glUniform1i(glGetUniformLocation(gr2D.sp, "tex"), 0);
 
 }
+
+gbatch_renderer_push_quad :: (q : gQuadInstance) {
+    //print("Quad pushed: %\n", q);
+    array_add(*gr2D.quads, q);
+}
+
 
 vertex_shader_ui_source :: #string END
 #version 330 core
@@ -487,7 +465,6 @@ layout (location = 4) in vec4 color[4];
 layout (location = 8) in float corner_radius;
 layout (location = 9) in float edge_softness;
 layout (location = 10) in float border_thickness;
-layout (location = 11) in uint tex_index;
 
 uniform vec2 res;
 
@@ -503,9 +480,8 @@ out VSI{
     float corner_radius;
     float edge_softness;
     float border_thickness;
-    flat uint tex_index;
 }vsi;
-uniform sampler2D tex[3];
+uniform sampler2D tex;
 
 vec2 vertices[] = {
     vec2(-1.0, -1.0),
@@ -526,7 +502,7 @@ void main()
     vec2 tex_half_size = (t1 - t0) / 2;
     vec2 tex_center = (t1 + t0) / 2;
     vec2 tex_pos = vertices[gl_VertexID] * tex_half_size + tex_center;
-    tc = vec2(tex_pos.x / textureSize(tex[tex_index],0).x, tex_pos.y / textureSize(tex[tex_index],0).y);
+    tc = vec2(tex_pos.x / textureSize(tex,0).x,1.0 - (tex_pos.y / textureSize(tex,0).y));
     col = color[gl_VertexID];
 
     vsi.dst_pos = dst_pos;
@@ -535,7 +511,6 @@ void main()
     vsi.corner_radius = corner_radius; 
     vsi.edge_softness = edge_softness;
     vsi.border_thickness = border_thickness;
-    vsi.tex_index = tex_index;
 } 
 END
 fragment_shader_ui_source :: #string END
@@ -566,9 +541,8 @@ in VSI {
     float corner_radius;
     float edge_softness;
     float border_thickness;
-    flat uint tex_index;
 }vsi;
-uniform sampler2D tex[3];
+uniform sampler2D tex;
 
 
 void main()
@@ -591,7 +565,7 @@ void main()
     //     border_factor = inside_f;
     // }
     // use sdf_factor in final color calculation
-    FragColor = texture(tex[vsi.tex_index], tc) * col * sdf_factor * border_factor;
+    FragColor = texture(tex, tc) * col * sdf_factor * border_factor;
 }
 END
 

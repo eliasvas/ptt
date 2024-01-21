@@ -14,8 +14,6 @@ gFontGlyphLoose :: struct {
     advance : s32;
     bitmap : *u8; //one byte per pixel (opacity)
 };
-ascii_table : [128] gFontGlyph;
-ascii_texture_data : [..] u8;
 
 //There should be a bitmap with all the characters PACKED, and then
 //a linear array that has all 128 characters mapped, along with glyph info
@@ -38,7 +36,7 @@ ft_init :: () {
         print("error loading TTF [%] : %", ttf_name, error);
     }
 
-    FT_Set_Pixel_Sizes(face, 0, 48);
+    FT_Set_Pixel_Sizes(face, 0, 64);
 
     loose_glyphs : [128] gFontGlyphLoose;
     //TODO: Why exception when 0..128??? Are some characters not implemented or something?
@@ -53,16 +51,16 @@ gfont_get_glyph_for_character :: (face : FT_Face, c : u8) -> gFontGlyphLoose {
     err := FT_Load_Char(face, c, FT_LOAD_RENDER); //should this be freed?
     byte_count := face.glyph.bitmap.width*face.glyph.bitmap.rows;
     bitmap : *u8 = alloc(size_of(u8) * byte_count);
-    //array_resize(*bitmap,byte_count);
     memcpy(dest = bitmap, source = face.glyph.bitmap.buffer, count = size_of(u8) * byte_count);
-    return .{c, face.glyph.bitmap.width, face.glyph.bitmap.rows, face.glyph.bitmap_left, face.glyph.bitmap_top, face.glyph.advance.x, bitmap};
+    return .{c, face.glyph.bitmap.width, face.glyph.bitmap.rows,face.glyph.bitmap_left,face.glyph.bitmap_top, face.glyph.advance.x, bitmap};
 }
 
 gFontGlyph :: struct {
     c : u8;// this is not really neaded
-    size_x, size_y : u32; //size of glyph in pixels
-    bearing_x, bearing_y : s32; //offset to left_top coord of glyph
-    advance : s32; //how much to advance to put the next glyph
+    size_x, size_y : u64; //size of glyph in pixels
+    bearing_x, bearing_y : s64; //offset to left_top coord of glyph
+    tc_x, tc_y : s64; //texture coordinated wrt (0,0) in tl
+    advance : u32; //how much to advance to put the next glyph
 };
 
 gFontAtlas :: struct {
@@ -99,7 +97,16 @@ gfont_generate_atlas :: (loose_glyphs : [] gFontGlyphLoose) {
     //2. put correct gFontGlyph's in the same-indexed array 
     sum_advance = 0;
     for i : 0..loose_glyphs.count-1 {
-        gfont_atlas.glyphs[i] = .{loose_glyphs[i].c, loose_glyphs[i].size_x, loose_glyphs[i].size_y, xx(loose_glyphs[i].bearing_x + sum_advance), loose_glyphs[i].bearing_y, loose_glyphs[i].advance};
+        gfont_atlas.glyphs[i] = .{
+            c = loose_glyphs[i].c, 
+            size_x = loose_glyphs[i].size_x, 
+            size_y = loose_glyphs[i].size_y,
+            bearing_x = loose_glyphs[i].bearing_x, //make bearing wrt top of bitmap (0,0 in tl)
+            bearing_y = loose_glyphs[i].bearing_y,  //make bearing wrt top of bitmap
+            tc_x = sum_advance, //tc in atlas
+            tc_y = max_y - loose_glyphs[i].size_y-1, //tc in atlas
+            advance = xx loose_glyphs[i].advance >> 6 //TODO: subpixel rendering? 
+        };
         sum_advance += loose_glyphs[i].size_x;
     }
     print("Font Altas generation Done [%ms]\n", (get_time()-start)*1000);
