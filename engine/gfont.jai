@@ -10,7 +10,7 @@
 //This is a glyph WITH its bitmap!
 gFontGlyphLoose :: struct {
     c : u8;
-    size_x, size_y : u32;
+    size_x, size_y : s32;
     bearing_x, bearing_y : s32;
     advance : s32;
     bitmap : *u8; //one byte per pixel (opacity)
@@ -39,7 +39,7 @@ freetype_create_loose_glyphs :: (font_filepath : string = ".build/Roboto-Medium.
     loose_glyphs : [..] gFontGlyphLoose;
     array_resize(*loose_glyphs, 128);
     //TODO: Why exception when 0..128??? Are some characters not implemented or something?
-    for i : 33..127 {
+    for i : 32..127 {
         loose_glyphs[i] = gfont_get_glyph_for_character(face,xx i);
     }
     return loose_glyphs;
@@ -51,12 +51,12 @@ gfont_get_glyph_for_character :: (face : FT_Face, c : u8) -> gFontGlyphLoose {
     byte_count := face.glyph.bitmap.width*face.glyph.bitmap.rows;
     bitmap : *u8 = alloc(size_of(u8) * byte_count);
     memcpy(dest = bitmap, source = face.glyph.bitmap.buffer, count = size_of(u8) * byte_count);
-    return .{c, face.glyph.bitmap.width, face.glyph.bitmap.rows,face.glyph.bitmap_left,face.glyph.bitmap_top, face.glyph.advance.x, bitmap};
+    return .{c, xx face.glyph.bitmap.width, xx face.glyph.bitmap.rows,face.glyph.bitmap_left,face.glyph.bitmap_top, face.glyph.advance.x, bitmap};
 }
 
 gFontGlyph :: struct {
     c : u8;// this is not really neaded
-    size_x, size_y : u64; //size of glyph in pixels
+    size_x, size_y : s64; //size of glyph in pixels
     bearing_x, bearing_y : s64; //offset to left_top coord of glyph
     tc_x, tc_y : s64; //texture coordinated wrt (0,0) in tl
     advance : u32; //how much to advance to put the next glyph
@@ -100,12 +100,12 @@ gfont_atlas_generate :: () -> gFontAtlas {
     for i : 0..loose_glyphs.count-1 {
         atlas.glyphs[i] = .{
             c = loose_glyphs[i].c, 
-            size_x = loose_glyphs[i].size_x, 
-            size_y = loose_glyphs[i].size_y,
+            size_x = loose_glyphs[i].size_x, //xsize in pixels
+            size_y = loose_glyphs[i].size_y, //ysize in pixels
             bearing_x = loose_glyphs[i].bearing_x, //make bearing wrt top of bitmap (0,0 in tl)
             bearing_y = loose_glyphs[i].bearing_y,  //make bearing wrt top of bitmap
             tc_x = sum_advance, //tc in atlas texture
-            tc_y = max_y - loose_glyphs[i].size_y-1, //tc in atlas
+            tc_y = max_y - loose_glyphs[i].size_y, //tc in atlas
             advance = xx loose_glyphs[i].advance >> 6 //TODO: subpixel rendering? 
         };
         sum_advance += loose_glyphs[i].size_x;
@@ -123,6 +123,23 @@ gfont_atlas_get_glyph_for_character :: (atlas : *gFontAtlas, c : u8) -> gFontGly
 }
 
 // Returns the rect produced by a string
-gfont_text_get_dim :: (s : string) -> width : u64, height : u64 {
-    return 0,0;
+gfont_atlas_get_dim_for_string :: (atlas : *gFontAtlas,s : string, scale : float = 1.0) -> width : s64, height : s64 {
+    if s.count == 0 then return 0,0;
+    advance_x := 0;
+    advance_y := 0;
+    for i : 0..s.count-1 {
+        glyph := gfont_atlas_get_glyph_for_character(atlas,s[i]);
+        //bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
+        // if i == 0 {
+        //     advance_x += xx(scale * (glyph.size_x));
+        // } else if i == s.count-1 {
+        //     advance_x += xx(scale * (glyph.bearing_x + glyph.size_x));
+        // } else {
+        //     advance_x += xx(scale * (glyph.advance));
+        // }
+        advance_x += xx(scale * (glyph.advance));
+        advance_y = max(advance_y, xx(scale*(glyph.bearing_y)));
+        //print("%", s);
+    }
+    return advance_x,advance_y;
 }

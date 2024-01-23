@@ -26,7 +26,7 @@ main :: () {
   win_dim : gVec2 = .{800,600};
   rend_dim : gVec2 = .{800,600};
   window = gwin_create(xx win_dim.x, xx win_dim.y, GWIN_OPT.RESIZABLE | GWIN_OPT.VISIBLE); 
-  grend_init(); //TODO: maybe pass window here?? (yes)
+  grend_init(*window);
 
   while !ges.exit{
     ges_update();

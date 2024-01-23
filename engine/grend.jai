@@ -28,6 +28,9 @@ gRendContext :: struct {
     font_gl_tex : GLuint;
     default_atlas : gFontAtlas;
     //+ a command buffer?!
+
+    //TODO: This should probably be some kind of UUID, have to think about resource management
+    window_ref : *gWin;
 }
 
 //NOTE: Should this be called render DEVICE instead of Context?
@@ -184,9 +187,10 @@ void main()
 }
 END
 
-grend_init :: () {
+grend_init :: (window : *gWin) {
     SDL_Init(SDL_INIT_VIDEO);
     grc.default_atlas = gfont_atlas_generate();
+    grc.window_ref = window;
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
@@ -322,7 +326,7 @@ gwin_update :: (win : *gWin) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //draw_sample_sphere_in_position(.{0,0,-30});
-    gbatch_renderer_2d_render(win);
+    gbatch_renderer_2d_render();
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -415,41 +419,70 @@ gbatch_renderer_2d_init :: () {
 
 }
 
-gbatch_renderer_2d_render :: (win : *gWin) {
+gbatch_renderer_2d_render :: () {
     glDisable(GL_DEPTH_TEST);
-    gbatch_renderer_bind_texture(grc.white_gl_tex, win);
-    gbatch_renderer_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0});
-    gbatch_renderer_bind_texture(grc.debug_gl_tex, win);
-    gbatch_renderer_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0});
-    gbatch_renderer_bind_texture(grc.font_gl_tex, win);
-    glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "a" + 1);
-    //print("glyph A : %\n",glyph);
-    scale := 2.0;
-    gbatch_renderer_bind_texture(grc.white_gl_tex, win);
-    gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},0,0,0});
-    gbatch_renderer_bind_texture(grc.font_gl_tex, win);
-    gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
+    // gbatch_renderer_bind_texture(grc.white_gl_tex);
+    // gbatch_renderer_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0});
+    // gbatch_renderer_bind_texture(grc.debug_gl_tex);
+    // gbatch_renderer_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0});
+    // gbatch_renderer_bind_texture(grc.font_gl_tex);
+    glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "e");
+    print("glyph e : %\n",glyph);
+    glyph2 := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "H");
+    print("glyph H : %\n",glyph2);
+    // scale := 2.0;
+    // gbatch_renderer_bind_texture(grc.white_gl_tex);
+    // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},0,0,0});
+    // gbatch_renderer_bind_texture(grc.font_gl_tex);
+    // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
 
-    gbatch_renderer_flush(win);
+    render_basic_string("Hello There", 100, 100, 1.0);
+    gbatch_renderer_flush();
 
 }
 
-gbatch_renderer_flush :: (win : *gWin) {
+render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float) {
+    start := gVec2.{xx pos_x,xx pos_y};
+    text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
+    gbatch_renderer_bind_texture(grc.white_gl_tex);
+    pad_x := 20;
+    pad_y := 20;
+    gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},4,4,0});
+
+    gbatch_renderer_bind_texture(grc.font_gl_tex);
+    cur_pos := start;
+
+    biggest_size_y :=0;
+    for i : 0..s.count-1 {
+        glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
+        biggest_size_y = max(biggest_size_y, glyph.size_y);
+    }
+    for i : 0..s.count-1 {
+        glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
+        cur_pos.y = start.y + biggest_size_y - glyph.size_y;// + (glyph.size_y - glyph.bearing_y);
+        bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
+        gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
+        cur_pos.x += glyph.advance * scale;
+    }
+
+}
+
+gbatch_renderer_flush :: () {
     glBindVertexArray(gr2D.vao);
     glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
     glBufferData(GL_ARRAY_BUFFER, gr2D.quads.count * size_of(gQuadInstance),gr2D.quads.data, GL_STREAM_DRAW);
     glUseProgram(gr2D.sp);
-    glUniform2f(glGetUniformLocation(gr2D.sp, "res"), xx win.dim.x, xx win.dim.y);
+    glUniform2f(glGetUniformLocation(gr2D.sp, "res"), xx grc.window_ref.dim.x, xx grc.window_ref.dim.y);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
     gr2D.quads.count = 0;
 }
 //TODO: make this engine texture, not OpenGL
-gbatch_renderer_bind_texture :: (tex : GLuint, win : *gWin) {
+gbatch_renderer_bind_texture :: (tex : GLuint) {
     if (tex != gr2D.last_bound_tex) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
         glUniform1i(glGetUniformLocation(gr2D.sp, "tex"), 0);
-        gbatch_renderer_flush(win);
+        gbatch_renderer_flush();
     }
     gr2D.last_bound_tex = tex;
     glActiveTexture(GL_TEXTURE0);
