@@ -426,33 +426,42 @@ gbatch_renderer_2d_render :: () {
     // gbatch_renderer_bind_texture(grc.debug_gl_tex);
     // gbatch_renderer_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0});
     // gbatch_renderer_bind_texture(grc.font_gl_tex);
-    glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "e");
-    print("glyph e : %\n",glyph);
-    glyph2 := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "H");
-    print("glyph H : %\n",glyph2);
+    // glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "e");
+    // print("glyph e : %\n",glyph);
+    // glyph2 := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "H");
+    // print("glyph H : %\n",glyph2);
     // scale := 2.0;
     // gbatch_renderer_bind_texture(grc.white_gl_tex);
     // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},0,0,0});
     // gbatch_renderer_bind_texture(grc.font_gl_tex);
     // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
 
-    render_basic_string("Hello There", 100, 100, 1.0);
+    hello_width, hello_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,"Hello There",1.0);
+    render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
+
+    fps_scale := 0.5;
+    fps_counter := sprint("%", formatFloat(1000.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
+    defer free(fps_counter.data);
+    fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
+    render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale, (U32_MAX << 24) );
     gbatch_renderer_flush();
 
 }
 
-render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float) {
+//TODO: color shifting don't work right (read up a bit on jai binary operations prb)
+render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float,text_color : u32 = U32_MAX, render_box : bool = false) {
     start := gVec2.{xx pos_x,xx pos_y};
     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
-    gbatch_renderer_bind_texture(grc.white_gl_tex);
-    pad_x := 20;
-    pad_y := 20;
-    gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},4,4,0});
-
+    if render_box {
+        gbatch_renderer_bind_texture(grc.white_gl_tex);
+        pad_x := 20;
+        pad_y := 20;
+        gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{1,0,0.5,1},.{1,0,0.5,1},.{1,0,0.5,1},.{1,0,0.5,1},10,6,0});
+    }
     gbatch_renderer_bind_texture(grc.font_gl_tex);
     cur_pos := start;
 
-    biggest_size_y :=0;
+    biggest_size_y := 0;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
         biggest_size_y = max(biggest_size_y, glyph.size_y);
@@ -461,7 +470,10 @@ render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float) {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
         cur_pos.y = start.y + biggest_size_y - glyph.size_y;// + (glyph.size_y - glyph.bearing_y);
         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
-        gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
+        tex_r := ((text_color >> (32 - 8)) & 0xffff) / 255.0;
+        tex_g := ((text_color >> (32 - 16)) & 0xffff) / 255.0;
+        tex_b := ((text_color >> (32 - 24)) & 0xffff) / 255.0;
+        gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},0,0,0});
         cur_pos.x += glyph.advance * scale;
     }
 

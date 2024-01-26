@@ -39,6 +39,8 @@ ges_update :: () {
     now := get_time();
     ges.dt = (now - ges.prev_frame_time) * 1000; 
     ges.prev_frame_time = now;
+
+
     //print("ms: %\n", ges.dt);
     //print("fps: %\n", 1000.0 / ges.dt);
 
