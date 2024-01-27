@@ -1,7 +1,6 @@
 #import "Basic";
 #import "Input";
 #import "System";
-#load "math.jai";
 
 //Some Notes on FONTS:
 //1.) We need to load the font at COMPILE time so the executable is bundled with the font data :)

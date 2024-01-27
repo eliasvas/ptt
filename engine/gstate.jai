@@ -34,8 +34,20 @@ ges_update :: () {
                     //SDL_GetWindowSize(window,&width,&height);
                     ges.window_resized = true;
                 }
+            case SDL_MOUSEBUTTONDOWN;
+                if event.button.button == SDL_BUTTON_LEFT then gim_push_event(.{xx gInputMouseKey.LMB,1,0, .MOUSE_CLICK});
+                if event.button.button == SDL_BUTTON_MIDDLE then gim_push_event(.{xx gInputMouseKey.MMB,1,0, .MOUSE_CLICK});
+                if event.button.button == SDL_BUTTON_RIGHT then gim_push_event(.{xx gInputMouseKey.RMB,1,0, .MOUSE_CLICK});
+            case SDL_MOUSEBUTTONUP;
+                if event.button.button == SDL_BUTTON_LEFT then gim_push_event(.{xx gInputMouseKey.LMB,0,0, .MOUSE_CLICK});
+                if event.button.button == SDL_BUTTON_MIDDLE then gim_push_event(.{xx gInputMouseKey.MMB,0,0, .MOUSE_CLICK});
+                if event.button.button == SDL_BUTTON_RIGHT then gim_push_event(.{xx gInputMouseKey.RMB,0,0, .MOUSE_CLICK});
+            case SDL_MOUSEMOTION;
+                gim_push_event(.{xx event.motion.x,xx event.motion.y,0, .MOUSE_MOVE});
+
         }
     }
+    gim_process_input();
     now := get_time();
     ges.dt = (now - ges.prev_frame_time) * 1000; 
     ges.prev_frame_time = now;
