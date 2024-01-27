@@ -2,12 +2,6 @@
 #import "Input";
 #import "System";
 
-//Some Notes on FONTS:
-//1.) We need to load the font at COMPILE time so the executable is bundled with the font data :)
-//2.) We will use stb_truetype to read the data and make glyphs
-//3.) We will make a FAST OpenGL batch renderer at grend.jai which will get said glyphs and draw them
-//4.) SDF?! 
-
 gKeyState :: enum u8 {
     KEY_UP       :: 0x0;
     KEY_PRESSED  :: 0x1;
@@ -23,7 +17,7 @@ gInputMouseKey :: enum u8 {
 
 GINPUT_EVENT_TYPE :: enum {
     MOUSE_MOVE;
-    MOUSE_CLICK;
+    MOUSE_ACTION;
     KEY_UP;
     KEY_DOWN;
 };
@@ -51,7 +45,7 @@ gim_process_input :: () {
     }
     for event : gim.events {
         if event.type == {
-            case .MOUSE_CLICK;
+            case .MOUSE_ACTION;
                 cs : u8 = xx gim.mkey_state[event.data0];
                 cs <<= 1;
                 cs |= xx event.data1;
