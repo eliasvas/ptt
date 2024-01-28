@@ -436,8 +436,12 @@ gbatch_renderer_2d_render :: () {
     // gbatch_renderer_bind_texture(grc.font_gl_tex);
     // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
 
-    hello_width, hello_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,"Hello There",1.0);
-    render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
+    // hello_width, hello_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,"Hello There",1.0);
+    // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
+
+    if (gui_button("Click me!", .{300,300})) {
+        print("Button click!");
+    }
 
     fps_scale := 0.5;
     fps_counter := sprint("%", formatFloat(1000.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));

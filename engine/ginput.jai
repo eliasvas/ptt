@@ -38,6 +38,7 @@ gInputManager :: struct {
 
 gim : gInputManager;
 
+//TODO: elanup .MOUSE_ACTION event handling
 gim_process_input :: () {
     //TODO: search up jai docs, how to do this with slice/array iteration
     for i : 0..2 {
@@ -66,4 +67,13 @@ gim_process_input :: () {
 //rn, only the last one will be resolved via gim_process_input
 gim_push_event :: (event : gInputEvent) {
     array_add(*gim.events, event);
+}
+
+
+//TODO: maybe we need a gRect struct for such cases (in the math library? some core file? IDK)
+gim_mouse_inside_region :: (p_x : float, p_y : float, w_x : float, w_y : float) -> bool {
+    mp_x : float = xx gim.mp_x;
+    mp_y : float = xx gim.mp_y;
+    if (mp_x <= p_x + w_x) && (mp_x >= p_x) && (mp_y >= p_y) && (mp_y <= p_y + w_y) then return true;
+    return false;
 }

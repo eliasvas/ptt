@@ -5,8 +5,6 @@
 //TODO: SDF? (we should make a new shader just for font tho?), also i think freetype has no support in .12
 //TODO: A module that will search all directories for the atlas' name file (Asset system pretty much?)
 
-
-
 //This is a glyph WITH its bitmap!
 gFontGlyphLoose :: struct {
     c : u8;
@@ -34,7 +32,7 @@ freetype_create_loose_glyphs :: (font_filepath : string = ".build/Roboto-Medium.
         print("error loading TTF [%] : %", ttf_name, error);
     }
 
-    FT_Set_Pixel_Sizes(face, 0, 64);
+    FT_Set_Pixel_Sizes(face, 0, 32);
 
     loose_glyphs : [..] gFontGlyphLoose;
     array_resize(*loose_glyphs, 128);

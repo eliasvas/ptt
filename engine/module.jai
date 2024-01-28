@@ -4,5 +4,5 @@
 #load "gmath.jai";
 #load "gfont.jai";
 #load "ginput.jai";
+#load "gui.jai";
 //#scope_module
-//#load "gui.jai"
