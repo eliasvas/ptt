@@ -472,7 +472,7 @@ render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float,text
     }
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
-        cur_pos.y = start.y + biggest_size_y - glyph.size_y;// + (glyph.size_y - glyph.bearing_y);
+        cur_pos.y = start.y + biggest_size_y * scale - glyph.size_y * scale;// + (glyph.size_y - glyph.bearing_y);
         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
         tex_r := ((text_color >> (32 - 8)) & 0xffff) / 255.0;
         tex_g := ((text_color >> (32 - 16)) & 0xffff) / 255.0;

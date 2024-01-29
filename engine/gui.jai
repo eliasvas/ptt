@@ -4,7 +4,7 @@
 
 //Some resources:
 //https://www.youtube.com/watch?v=Z1qyvQsjK5Y casey's general overview, VERY important
-//https://solhsa.com/imgui/ nice and SIMPLE overview of a basic imgui
+//https://solhsa.com/imgui nice and SIMPLE overview of a basic imgui
 //https://www.rfleury.com/p/ui-series-table-of-contents This is real good for a more complicated (complete) UI system
 
 
@@ -39,13 +39,12 @@ gui_update :: () {
 gui_button :: (s : string, pos : gVec2) -> bool {
     id := djb2_hash(s);
     res := false;
-    scale := 1.0;
+    scale := 1.4;
     w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
     if gim_mouse_inside_region(pos.x, pos.y, xx w_x, xx w_y) {
         gui.hot = id;
     }
-
 
     if gui.active == id {
         render_basic_string(s,xx pos.x,xx pos.y, scale,U32_MAX, true);

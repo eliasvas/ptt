@@ -1,6 +1,5 @@
 #import "freetype-2.12.1";
 
-//TODO: We should generate the whole atlas as a bitmap?
 //TODO: The font should be baked in the .exe
 //TODO: SDF? (we should make a new shader just for font tho?), also i think freetype has no support in .12
 //TODO: A module that will search all directories for the atlas' name file (Asset system pretty much?)
