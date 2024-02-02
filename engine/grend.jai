@@ -11,7 +11,6 @@
 
 sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 
-//TODO: generate a sphere, like the texture, also use together?!
 gRendContext :: struct {
 
     shader_program_3D : GLuint;
@@ -192,6 +191,7 @@ grend_init :: (window : *gWin) {
     grc.default_atlas = gfont_atlas_generate();
     grc.window_ref = window;
     glEnable(GL_DEPTH_TEST);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
     gbatch_renderer_2d_init();
@@ -440,7 +440,7 @@ gbatch_renderer_2d_render :: () {
     // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
 
     if (gui_button("Click me!", .{300,300})) {
-        print("Button click!");
+        print("Button click!\n");
     }
 
     fps_scale := 1.0;
@@ -454,7 +454,6 @@ gbatch_renderer_2d_render :: () {
 
 }
 
-//TODO: color shifting don't work right (read up a bit on jai binary operations prb)
 render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float,text_color : u32 = U32_MAX, render_box : bool = false) {
     start := gVec2.{xx pos_x,xx pos_y};
     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
@@ -464,9 +463,10 @@ render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float,text
        
     if render_box {
         gbatch_renderer_bind_texture(grc.white_gl_tex);
-        pad_x := 20;
-        pad_y := 20;
-        gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},10,6,0});
+        pad_x := 40;
+        pad_y := 40;
+        gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{tex_r,tex_g+0.1,tex_b,1},.{tex_r,tex_g+0.1,tex_b,1},.{tex_r,tex_g+0.1,tex_b,1},.{tex_r,tex_g+0.1,tex_b,1},10,3,0});
+        gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{tex_r,tex_g+0.3,tex_b,1},.{tex_r+0.3,tex_g,tex_b,1},.{tex_r,tex_g,tex_b+0.3,1},.{tex_r,tex_g,tex_b,1},5,10,0});
     }
     gbatch_renderer_bind_texture(grc.font_gl_tex);
     cur_pos := start;
@@ -597,7 +597,6 @@ float RoundedRectSDF(vec2 sample_pos,
   return min(max(d2.x, d2.y), 0.0) + length(max(d2, 0.0)) - r;
 }  
 
-//TODO: put all these in uniforms in a fucking struct
 in vec4 col;
 in vec2 tc;
 

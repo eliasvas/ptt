@@ -38,7 +38,6 @@ gInputManager :: struct {
 
 gim : gInputManager;
 
-//TODO: elanup .MOUSE_ACTION event handling
 gim_process_input :: () {
     //TODO: search up jai docs, how to do this with slice/array iteration
     for i : 0..2 {
@@ -47,10 +46,7 @@ gim_process_input :: () {
     for event : gim.events {
         if event.type == {
             case .MOUSE_ACTION;
-                cs : u8 = xx gim.mkey_state[event.data0];
-                cs <<= 1;
-                cs |= xx event.data1;
-                cs &= 0x3;
+                cs : u8 = ((cast(u8)gim.mkey_state[event.data0] << 1) | (xx event.data1 & 1)) & 0x3;
                 gim.mkey_state[event.data0] = xx cs;
                 //print("mouse[%]=[%]\n", cast(gInputMouseKey)event.data0, event.data1);
             case .MOUSE_MOVE;

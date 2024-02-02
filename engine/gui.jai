@@ -8,6 +8,20 @@
 //https://www.rfleury.com/p/ui-series-table-of-contents This is real good for a more complicated (complete) UI system
 
 
+/*
+Notes: 
+    We need a gui system that is code-oriented (meaning no callbacks) but at the same time can
+handle complicated autolayout algorithms, which are needed for any sufficiently complex application UI.
+For that reason, we make a gui hierarchy each frame, with all widgets in a SEMANTIC form (no pixels). Just before
+rendering we do the auto-layout algorithm, meaning multiple passes in the hierarchy to decipher the actual pixel-space
+coordinates of each widget (+pipe state). This is pretty much how most Retained-mode UI libraries work. 
+    To get around providing callbacks for every action like guiButton("press me", cb), we need a way to decypher the
+coordinates for each widget exactly when guiButton(..) is called, and do the actions needed (e.g branch to some code / 
+set widget as hot / advance animation / collapse a panel). To achieve this we use the hierarchy (+ its pixel coordinates
+and stuff that are computed) from the PREVIOUS frame. This will introduce a 1-frame lag on event handling,
+but its unnoticeable, and rendering is perfectly synced.
+*/
+
 djb2_hash :: (str : string) -> u64 {
     hash : u64 = 5381;
     c : u8;
@@ -34,15 +48,16 @@ gui_update :: () {
 }
 
 
-//BUG: if we change the text scale, weird things happen
-//TODO: work a bit on the input abstraction (we dont want to access internal state like)
+//TODO: work a bit on the input abstraction (we dont want to access internal state like gim.mkey_state[gInputMouseKey.LMB])
 gui_button :: (s : string, pos : gVec2) -> bool {
     id := djb2_hash(s);
     res := false;
     scale := 1.4;
     w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
-    if gim_mouse_inside_region(pos.x, pos.y, xx w_x, xx w_y) {
+    pad_x := 40;
+    pad_y := 40;
+    if gim_mouse_inside_region(pos.x - pad_x, pos.y - pad_y, xx (w_x + pad_x), xx (w_y + pad_y)) {
         gui.hot = id;
     }
 
