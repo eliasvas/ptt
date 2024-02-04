@@ -6,32 +6,16 @@
 //This might help https://developer.nvidia.com/opengl-vulkan
 //also this https://hacksoflife.blogspot.com/2015/04/the-opengl-impedance-mismatch.html
 //TODO: remove openGL from UI code, and make it use dis
-
-//Sample usage:
-/*
-vertices,indices := gobj_read("filepath.obj");
-vertex_attribs := .[.{float, 3, 0 * size_of(float)}, .{float, 3, 3 * size_of(float)}];
-shader_obj : gfxShaderID = gshader_create(".vert", ".frag", vert_attribs);
-vbo : gfxBufID = gbuf_create(*vertices, VBO);
-ibo : gfxBufID = gbuf_create(*indices, IBO);
-
-..
-
-gfxBindVBO(vbo);
-gfxBindIBO(ibo);
-gfxBindShaderObject(shader_obj);
-gfxRenderIndexed(gfxTriangles);
-
-*/
+//TODO: also https://stackoverflow.com/questions/14249634/opengl-vaos-and-multiple-buffers AND instanced attribs
 
 sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 gfxContext :: struct {
-    vao : GLuint;
+    global_vao : GLuint;
 
     shader_program_3D : GLuint;
 
-    sphere_vbo : GLuint;
-    sphere_ibo : GLuint;
+    sphere_vbo : gfxBUF;
+    sphere_ibo : gfxBUF;
 
     debug_gl_tex : GLuint;
     debug_tex : gTextureData;
@@ -40,17 +24,14 @@ gfxContext :: struct {
 gfx : gfxContext;
 
 gfx_context_init :: () {
-    glGenVertexArrays(1, *gfx.vao);
-    glBindVertexArray(gfx.vao);
+    glGenVertexArrays(1, *gfx.global_vao);
+    glBindVertexArray(gfx.global_vao);
 
+    gfx.sphere_ibo = gfx_make_buffer(.INDEX, sphere_idx.data, sphere_idx.count, size_of(u32));
+    gfx_bind_index_buffer(*gfx.sphere_ibo);
+    gfx.sphere_vbo = gfx_make_buffer(.VERTEX, sphere_verts.data, sphere_verts.count, size_of(gVertex));
+    gfx_bind_vertex_buffer(*gfx.sphere_vbo);
 
-    //debug sphere initialization
-    glGenBuffers(1, *gfx.sphere_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, gfx.sphere_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sphere_verts.count * size_of(gVertex),sphere_verts.data, GL_STATIC_DRAW);
-    glGenBuffers(1, *gfx.sphere_ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gfx.sphere_ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphere_idx.count * size_of(u32),sphere_idx.data, GL_STATIC_DRAW);
     gfx.shader_program_3D = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
     glVertexAttribDivisor(1, 0);
@@ -114,7 +95,35 @@ gfxBufType  :: enum {
 
 gfxBUF :: struct {
     //--OpenGL specifnig
-    vbo : GLuint;
+    handle : GLuint;
+    count : s64;
+    size : s64; //in bytes
+    type : gfxBufType;
+}
+
+
+//The data will be written in GPU memory immediately, so the pointer can be freed right after
+gfx_make_buffer :: (type : gfxBufType, data : *void, data_count : u32, data_size : u32) -> gfxBUF {
+    buf : gfxBUF;
+    buf.type = type;
+    buf.count = data_count;
+    buf.size = data_size * data_count;
+
+    buffer_type := ifx type == .VERTEX then GL_ARRAY_BUFFER else GL_ELEMENT_ARRAY_BUFFER;
+
+    glGenBuffers(1, *buf.handle);
+    glBindBuffer(xx buffer_type, buf.handle);
+    glBufferData(xx buffer_type, buf.size,data, GL_STATIC_DRAW); //TODO: make a type for DYNAMIC/STATIC/STREAM?
+    glBindBuffer(xx buffer_type, 0);
+    return buf;
+}
+
+gfx_bind_index_buffer :: (b : *gfxBUF) {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, b.handle);
+}
+
+gfx_bind_vertex_buffer :: (b : *gfxBUF) {
+    glBindBuffer(GL_ARRAY_BUFFER, b.handle);
 }
 
 gfx_draw_sample_scene :: () {
@@ -123,11 +132,13 @@ gfx_draw_sample_scene :: () {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_BLEND);
 
-    glBindVertexArray(gfx.vao);
+
+    glBindVertexArray(gfx.global_vao);
     glUseProgram(gfx.shader_program_3D);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(pos);
-    cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
+    //cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
+    cam_pos : gVec3 = .{0,xx sin(get_time()) * 20.0,0};
     view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
     ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
@@ -138,6 +149,7 @@ gfx_draw_sample_scene :: () {
     glUniform1i(glGetUniformLocation(gfx.shader_program_3D, "tex"), 0);
     glUniform1f(glGetUniformLocation(gfx.shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
+
     //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
