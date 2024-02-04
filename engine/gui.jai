@@ -2,6 +2,9 @@
 #import "Input";
 #import "System";
 
+//TODO:
+//"##" string hashing for widget with same string hashes
+
 //Some resources:
 //https://www.youtube.com/watch?v=Z1qyvQsjK5Y casey's general overview, VERY important
 //https://solhsa.com/imgui nice and SIMPLE overview of a basic imgui
