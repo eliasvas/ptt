@@ -111,6 +111,13 @@ gfont_atlas_generate :: () -> gFontAtlas {
     return atlas;
 }
 
+gfont_atlas_get_max_glyph_height :: (atlas : *gFontAtlas, scale : float = 1.0) {
+    max_h : float = 0;
+    for glyph : atlas.glyphs {
+        max_h = max(max_h, glyph.size_y * scale);
+    }
+}
+
 gfont_atlas_deinit :: (atlas : *gFontAtlas) {
     free(atlas.bitmap);
 }

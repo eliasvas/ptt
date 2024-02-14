@@ -5,12 +5,14 @@
 //The gist is we hold all OpenGL global state and do correct transitions, also no more VAOs! 
 //This might help https://developer.nvidia.com/opengl-vulkan
 //also this https://hacksoflife.blogspot.com/2015/04/the-opengl-impedance-mismatch.html
+//based on this: https://floooh.github.io/2020/02/17/sokol-gfx-backend-tour-gl.html
 //TODO: remove openGL from UI code, and make it use dis
 //TODO: also https://stackoverflow.com/questions/14249634/opengl-vaos-and-multiple-buffers AND instanced attribs
 
 sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
 gfxContext :: struct {
-    global_vao : GLuint;
+    vao : GLuint;
+    def_fbo : GLuint;
 
     shader_program_3D : GLuint;
 
@@ -24,8 +26,8 @@ gfxContext :: struct {
 gfx : gfxContext;
 
 gfx_context_init :: () {
-    glGenVertexArrays(1, *gfx.global_vao);
-    glBindVertexArray(gfx.global_vao);
+    glGenVertexArrays(1, *gfx.vao);
+    glBindVertexArray(gfx.vao);
 
     gfx.sphere_ibo = gfx_make_buffer(.INDEX, sphere_idx.data, sphere_idx.count, size_of(u32));
     gfx_bind_index_buffer(*gfx.sphere_ibo);
@@ -101,6 +103,24 @@ gfxBUF :: struct {
     type : gfxBufType;
 }
 
+gfxShaderAttrib :: struct {
+    vbo_index : s8; // -1 if attrib empty 
+    divisor : s8;  // -1 if not initialized 
+    stride : u8;
+    size : u8;
+    norm : u8;
+    offset : int;
+    type : GLenum;
+}
+gfxShaderObject :: struct {
+    program : GLuint;
+    attribs : [16] gfxShaderAttrib; //this should be set once!
+}
+
+gfx_reset_gl :: () {
+    glBindVertexArray(0);
+}
+
 
 //The data will be written in GPU memory immediately, so the pointer can be freed right after
 gfx_make_buffer :: (type : gfxBufType, data : *void, data_count : u32, data_size : u32) -> gfxBUF {
@@ -133,14 +153,14 @@ gfx_draw_sample_scene :: () {
     glDisable(GL_BLEND);
 
 
-    glBindVertexArray(gfx.global_vao);
-    glUseProgram(gfx.shader_program_3D);
+    glBindVertexArray(gfx.vao);
     aspect := 800.0 / 600.0;
     model_mat := make_translation_matrix(pos);
     //cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
     cam_pos : gVec3 = .{0,xx sin(get_time()) * 20.0,0};
     view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
     ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
+    glUseProgram(gfx.shader_program_3D);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "view"),1, GL_FALSE, xx *view_mat);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "proj"),1, GL_FALSE, xx *ortho_mat);

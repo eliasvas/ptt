@@ -39,6 +39,8 @@ guiid :: #type u64;
 guiContext :: struct {
     hot : guiid; 
     active : guiid; 
+    style : guiStyle = #run gui_style_default();
+    text_scale : float = 0.7;
 }
 
 //TODO: should this be initialized by the game/editor?
@@ -55,31 +57,58 @@ gui_update :: () {
 gui_button :: (s : string, pos : gVec2) -> bool {
     id := djb2_hash(s);
     res := false;
-    scale := 1.4;
+    scale := gui.text_scale;
     w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
-    pad_x := 40;
-    pad_y := 40;
-    if gim_mouse_inside_region(pos.x - pad_x, pos.y - pad_y, xx (w_x + pad_x), xx (w_y + pad_y)) {
+    max_possible_height := gfont_atlas_get_max_glyph_height(*grc.default_atlas, scale);
+
+    pad_x := gui.style.button_pad_x;
+    pad_y := gui.style.button_pad_y;
+    if gim_mouse_inside_region(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y)) {
         gui.hot = id;
     }
 
     if gui.active == id {
-        render_basic_string(s,xx pos.x,xx pos.y, scale,U32_MAX, true);
+        render_basic_box(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y), gui.style.default_active_color);
+        render_basic_string(s,xx (pos.x + pad_x/2),xx (pos.y+pad_y/2), scale);
         if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_RELEASED) {
             if gui.hot == id {
                 res = true;
-                gui.active = 0;
             }
+            gui.active = 0;
         } 
     }else if (gui.hot == id) {
-        render_basic_string(s,xx pos.x,xx pos.y, scale,U32_MAX/2, true);
+        render_basic_box(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y), gui.style.default_hot_color);
+        render_basic_string(s,xx (pos.x + pad_x/2),xx (pos.y+pad_y/2), scale);
         if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_PRESSED) {
             gui.active = id;
         }
     }else {
-        render_basic_string(s,xx pos.x,xx pos.y, scale,U32_MAX/300, true);
+        render_basic_box(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y), gui.style.default_color);
+        render_basic_string(s,xx (pos.x + pad_x/2),xx (pos.y+pad_y/2), scale);
+        //render_basic_box(pos.x, pos.y, xx (w_x), xx (w_y), gui.style.default_active_color);
+        //render_basic_string(s,xx (pos.x),xx (pos.y), scale);
     }
 
     return res;
+}
+
+
+
+guiStyle :: struct {
+    default_text_color : gVec4;
+    default_color : gVec4;
+    default_active_color : gVec4;
+    default_hot_color : gVec4;
+    button_pad_x : float = 30.0;
+    button_pad_y : float = 20.0;
+}
+
+gui_style_default :: () -> guiStyle {
+    style : guiStyle;
+    style.default_text_color = .{1.0,1.0,1.0,1.0};
+    style.default_color = .{0.3,0.3,0.3,0.3};
+    style.default_active_color = .{0.5,0.5,0.5,0.5};
+    style.default_hot_color = .{0.4,0.4,0.4,0.4};
+    return style;
 }
