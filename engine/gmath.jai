@@ -162,3 +162,7 @@ make_lookat_matrix :: (from : gVec3, to : gVec3, dummy_up : gVec3) -> gMat4 {
   //mat = make_transpose_matrix(mat);
   return mat;
 }
+
+gRect :: struct {
+  x0,y0,w,h : float;
+}

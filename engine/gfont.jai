@@ -111,11 +111,20 @@ gfont_atlas_generate :: () -> gFontAtlas {
     return atlas;
 }
 
-gfont_atlas_get_max_glyph_height :: (atlas : *gFontAtlas, scale : float = 1.0) {
+gfont_atlas_get_text_scale_to_fit_region :: (atlas : *gFontAtlas, s : string, region : gRect) -> float {
+    f_w,f_h :float = xx gfont_atlas_get_dim_for_string(atlas,s,1.0);
+    ratio_w := region.w / f_w;
+    ratio_h := region.h / f_h;
+    return min(ratio_w, ratio_h);
+}
+
+
+gfont_atlas_get_max_glyph_height :: (atlas : *gFontAtlas, scale : float = 1.0) -> float {
     max_h : float = 0;
     for glyph : atlas.glyphs {
         max_h = max(max_h, glyph.size_y * scale);
     }
+    return max_h;
 }
 
 gfont_atlas_deinit :: (atlas : *gFontAtlas) {
@@ -127,10 +136,10 @@ gfont_atlas_get_glyph_for_character :: (atlas : *gFontAtlas, c : u8) -> gFontGly
 }
 
 // Returns the rect produced by a string
-gfont_atlas_get_dim_for_string :: (atlas : *gFontAtlas,s : string, scale : float = 1.0) -> width : s64, height : s64 {
+gfont_atlas_get_dim_for_string :: (atlas : *gFontAtlas,s : string, scale : float = 1.0) -> width : float, height : float {
     if s.count == 0 then return 0,0;
-    advance_x := 0;
-    advance_y := 0;
+    advance_x : float = 0;
+    advance_y : float = 0;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(atlas,s[i]);
         //bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
@@ -143,6 +152,7 @@ gfont_atlas_get_dim_for_string :: (atlas : *gFontAtlas,s : string, scale : float
         // }
         advance_x += xx(scale * (glyph.advance));
         advance_y = max(advance_y, xx(scale*(glyph.bearing_y)));
+        //advance_y = scale*(glyph.bearing_y);
         //print("%", s);
     }
     return advance_x,advance_y;

@@ -261,15 +261,21 @@ gbatch_renderer_2d_render :: () {
         print("Me too clicked!\n");
     }
 
-    text1 := "aaaaa";
-    t1_width, t1_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,text1,gui.text_scale);
-    if (gui_button(text1, .{300,300})) {
-        print("Button click!\n");
+    if (gui_button("JBUTTON", .{200,200, 100,100})) {
+        print("JButton clicked!\n");
     }
-    text2 := "CAPS!";
-    if (gui_button(text2, .{300 + 150,300})) {
-        print("CAPS click!\n");
+    if (gui_button("somebod", .{300,200, 300,100})) {
+        print("JButton2 clicked!\n");
     }
+    // text1 := "aaaaa";
+    // t1_width, t1_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,text1,gui.text_scale);
+    // if (gui_button(text1, .{300,300})) {
+    //     print("Button click!\n");
+    // }
+    // text2 := "CAPS!";
+    // if (gui_button(text2, .{300 + 150,300})) {
+    //     print("CAPS click!\n");
+    // }
 
     fps_scale := 1.0;
     fps_counter := sprint("%", formatFloat(1000.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
@@ -284,11 +290,11 @@ gbatch_renderer_2d_render :: () {
 
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4) {
     gbatch_renderer_bind_texture(grc.white_gl_tex);
-    gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},10,3,0});
+    gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
     //gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
 }
 
-render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float) {
+render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float) {
     start := gVec2.{xx pos_x,xx pos_y};
     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
@@ -305,7 +311,8 @@ render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float) {
         cur_pos.y = start.y + (biggest_size_y - glyph.size_y) * scale;// + (glyph.size_y - glyph.bearing_y);
         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
     
-        gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
+        //gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
+        gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},0,0,0});
         cur_pos.x += glyph.advance * scale;
     }
 }
