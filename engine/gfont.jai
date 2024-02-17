@@ -31,7 +31,7 @@ freetype_create_loose_glyphs :: (font_filepath : string = ".build/Roboto-Medium.
         print("error loading TTF [%] : %", ttf_name, error);
     }
 
-    FT_Set_Pixel_Sizes(face, 0, 32);
+    FT_Set_Pixel_Sizes(face, 0, 64);
 
     loose_glyphs : [..] gFontGlyphLoose;
     array_resize(*loose_glyphs, 128);
@@ -102,10 +102,11 @@ gfont_atlas_generate :: () -> gFontAtlas {
             bearing_x = loose_glyphs[i].bearing_x, //make bearing wrt top of bitmap (0,0 in tl)
             bearing_y = loose_glyphs[i].bearing_y,  //make bearing wrt top of bitmap
             tc_x = sum_advance, //tc in atlas texture
-            tc_y = max_y - loose_glyphs[i].size_y, //tc in atlas
-            advance = xx loose_glyphs[i].advance >> 6 //TODO: subpixel rendering? 
+            tc_y = max_y - loose_glyphs[i].size_y - 1, //tc in atlas
+            advance = xx loose_glyphs[i].advance >> 6
         };
         sum_advance += loose_glyphs[i].size_x;
+        //print("glyph[%]=%\n", i, atlas.glyphs[i]);
     }
     print("Font Altas generation Done [%ms]\n", (get_time()-start)*1000);
     return atlas;
@@ -119,13 +120,13 @@ gfont_atlas_get_text_scale_to_fit_region :: (atlas : *gFontAtlas, s : string, re
 }
 
 
-gfont_atlas_get_max_glyph_height :: (atlas : *gFontAtlas, scale : float = 1.0) -> float {
-    max_h : float = 0;
-    for glyph : atlas.glyphs {
-        max_h = max(max_h, glyph.size_y * scale);
-    }
-    return max_h;
-}
+// gfont_atlas_get_max_glyph_height :: (atlas : *gFontAtlas, scale : float = 1.0) -> float {
+//     max_h : float = 0;
+//     for glyph : atlas.glyphs {
+//         max_h = max(max_h, glyph.size_y * scale);
+//     }
+//     return max_h;
+// }
 
 gfont_atlas_deinit :: (atlas : *gFontAtlas) {
     free(atlas.bitmap);
@@ -139,21 +140,15 @@ gfont_atlas_get_glyph_for_character :: (atlas : *gFontAtlas, c : u8) -> gFontGly
 gfont_atlas_get_dim_for_string :: (atlas : *gFontAtlas,s : string, scale : float = 1.0) -> width : float, height : float {
     if s.count == 0 then return 0,0;
     advance_x : float = 0;
-    advance_y : float = 0;
+    max_h_above_baseline : float = 0;
+    max_h_below_baseline : float = 0;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(atlas,s[i]);
-        //bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
-        // if i == 0 {
-        //     advance_x += xx(scale * (glyph.size_x));
-        // } else if i == s.count-1 {
-        //     advance_x += xx(scale * (glyph.bearing_x + glyph.size_x));
-        // } else {
-        //     advance_x += xx(scale * (glyph.advance));
-        // }
         advance_x += xx(scale * (glyph.advance));
-        advance_y = max(advance_y, xx(scale*(glyph.bearing_y)));
-        //advance_y = scale*(glyph.bearing_y);
+        max_h_above_baseline = max(max_h_above_baseline, xx(scale*(glyph.bearing_y)));
+        max_h_below_baseline = max(max_h_below_baseline, xx(scale*(glyph.size_y - glyph.bearing_y)));
         //print("%", s);
     }
-    return advance_x,advance_y;
+    advance_x -= gfont_atlas_get_glyph_for_character(atlas,s[s.count-1]).bearing_x;
+    return advance_x,(max_h_above_baseline + max_h_below_baseline);
 }

@@ -40,7 +40,7 @@ guiContext :: struct {
     hot : guiid; 
     active : guiid; 
     style : guiStyle = #run gui_style_default();
-    text_scale : float = 0.7;
+    text_scale : float = 0.8;
 }
 
 //TODO: should this be initialized by the game/editor?
@@ -60,11 +60,8 @@ gui_button :: (s : string, pos : gVec2) -> bool {
     scale := gui.text_scale;
     w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
-    max_possible_height := gfont_atlas_get_max_glyph_height(*grc.default_atlas, scale);
-    empty_space_needed_for_uniform_text_size : float = xx (max_possible_height - w_y);
-
     pad_x := gui.style.button_pad_x;
-    pad_y := gui.style.button_pad_y + empty_space_needed_for_uniform_text_size;
+    pad_y := gui.style.button_pad_y;
     if gim_mouse_inside_region(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y)) {
         gui.hot = id;
     }
@@ -144,8 +141,8 @@ guiStyle :: struct {
     default_color : gVec4;
     default_active_color : gVec4;
     default_hot_color : gVec4;
-    button_pad_x : float = 13.0;
-    button_pad_y : float = 4.0;
+    button_pad_x : float = 20.0;
+    button_pad_y : float = 10.0;
 }
 
 gui_style_default :: () -> guiStyle {

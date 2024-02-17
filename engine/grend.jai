@@ -257,16 +257,16 @@ gbatch_renderer_2d_render :: () {
     // hello_width, hello_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,"Hello There",1.0);
     // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
 
-    if (gui_button("Me too!", .{500,500})) {
+    if (gui_button("only!", .{500,400})) {
         print("Me too clicked!\n");
     }
 
-    if (gui_button("JBUTTON", .{200,200, 100,100})) {
-        print("JButton clicked!\n");
-    }
-    if (gui_button("somebod", .{300,200, 300,100})) {
-        print("JButton2 clicked!\n");
-    }
+    // if (gui_button("only", .{200,200, 100,100})) {
+    //     print("JButton clicked!\n");
+    // }
+    // if (gui_button("only2", .{300,200, 300,100})) {
+    //     print("JButton2 clicked!\n");
+    // }
     // text1 := "aaaaa";
     // t1_width, t1_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,text1,gui.text_scale);
     // if (gui_button(text1, .{300,300})) {
@@ -298,20 +298,20 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
     start := gVec2.{xx pos_x,xx pos_y};
     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
-    biggest_size_y := 0;
+    //tallest in the sense of tallest POSITIVE bearing
+    tallest_size_y := 0;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
-        biggest_size_y = max(biggest_size_y, glyph.size_y);
+        tallest_size_y = max(tallest_size_y, glyph.bearing_y);
     }
 
     gbatch_renderer_bind_texture(grc.font_gl_tex);
     cur_pos := start;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
-        cur_pos.y = start.y + (biggest_size_y - glyph.size_y) * scale;// + (glyph.size_y - glyph.bearing_y);
+        cur_pos.y = start.y + (tallest_size_y - glyph.bearing_y) * scale;
         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
     
-        //gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
         gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},0,0,0});
         cur_pos.x += glyph.advance * scale;
     }
