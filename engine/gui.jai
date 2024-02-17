@@ -93,15 +93,14 @@ gui_button :: (s : string, pos : gVec2) -> bool {
 
 gui_button :: (s : string, r : gRect) -> bool {
     id := djb2_hash(s);
-    pos :gVec2= .{r.x0, r.y0};
     res := false;
-    pad_x := 10.0;
-    pad_y := 7.0;
-    text_r: gRect = .{r.x0+pad_x, r.y0 + pad_y, r.w - pad_x*2, r.w - pad_y*2};
-    text_rr := text_r;
+    pad_x := gui.style.button_pad_x;
+    pad_y := gui.style.button_pad_y;
+    text_r: gRect = .{r.x0 + pad_x/2, r.y0 + pad_y/2, r.w - pad_x, r.h - pad_y};
     scale := gfont_atlas_get_text_scale_to_fit_region(*grc.default_atlas,s, text_r);
     w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
-    text_r.y0 += r.h/2 - w_y/2;
+    text_r.y0 += text_r.h/2 - w_y/2;
+    text_r.x0 += text_r.w/2 - w_x/2;
 
     if gim_mouse_inside_region(r.x0, r.y0, r.w,r.h) {
         gui.hot = id;

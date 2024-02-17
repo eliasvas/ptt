@@ -258,26 +258,17 @@ gbatch_renderer_2d_render :: () {
     // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
 
     if (gui_button("only!", .{500,400})) {
-        print("Me too clicked!\n");
+        print("only! clicked!\n");
     }
 
-    // if (gui_button("only", .{200,200, 100,100})) {
-    //     print("JButton clicked!\n");
-    // }
-    // if (gui_button("only2", .{300,200, 300,100})) {
-    //     print("JButton2 clicked!\n");
-    // }
-    // text1 := "aaaaa";
-    // t1_width, t1_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,text1,gui.text_scale);
-    // if (gui_button(text1, .{300,300})) {
-    //     print("Button click!\n");
-    // }
-    // text2 := "CAPS!";
-    // if (gui_button(text2, .{300 + 150,300})) {
-    //     print("CAPS click!\n");
-    // }
-
-    fps_scale := 1.0;
+    if (gui_button("general", .{200,200, 100,100})) {
+        print("general clicked!\n");
+    }
+    if (gui_button("kenobi", .{300,200, 150,100})) {
+        print("kenobi clicked!\n");
+    }
+ 
+    fps_scale := 0.5;
     fps_counter := sprint("%", formatFloat(1000.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
     defer free(fps_counter.data);
     fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
@@ -291,7 +282,7 @@ gbatch_renderer_2d_render :: () {
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4) {
     gbatch_renderer_bind_texture(grc.white_gl_tex);
     gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
-    //gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
+    ////gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
 }
 
 render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float) {
@@ -316,45 +307,6 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
         cur_pos.x += glyph.advance * scale;
     }
 }
-
-// render_basic_string :: (s : string, pos_x : s32, pos_y : s32, scale : float, text_color : u32 = U32_MAX, render_box : bool = false) {
-//     start := gVec2.{xx pos_x,xx pos_y};
-//     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
-//     tex_r := ((text_color >> (32 - 8)) & 0xff) / 255.0;
-//     tex_g := ((text_color >> (32 - 16)) & 0xff) / 255.0;
-//     tex_b := ((text_color >> (32 - 24)) & 0xff) / 255.0;
-       
-//     if render_box {
-//         gbatch_renderer_bind_texture(grc.white_gl_tex);
-//         pad_x := 0;
-//         pad_y := 0;
-//         gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{tex_r,tex_g+0.1,tex_b,1},.{tex_r,tex_g+0.1,tex_b,1},.{tex_r,tex_g+0.1,tex_b,1},.{tex_r,tex_g+0.1,tex_b,1},10,3,0});
-//         gbatch_renderer_push_quad(.{.{xx (start.x-pad_x),xx (start.y - pad_y)},.{xx(start.x + text_width + pad_x), xx(start.y + text_height + pad_y)}, .{0,0}, .{0,0},.{tex_r,tex_g+0.3,tex_b,1},.{tex_r+0.3,tex_g,tex_b,1},.{tex_r,tex_g,tex_b+0.3,1},.{tex_r,tex_g,tex_b,1},5,10,0});
-//     }
-//     gbatch_renderer_bind_texture(grc.font_gl_tex);
-//     cur_pos := start;
-
-//     biggest_size_y := 0;
-//     for i : 0..s.count-1 {
-//         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
-//         biggest_size_y = max(biggest_size_y, glyph.size_y);
-//     }
-//     for i : 0..s.count-1 {
-//         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
-//         cur_pos.y = start.y + biggest_size_y * scale - glyph.size_y * scale;// + (glyph.size_y - glyph.bearing_y);
-//         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
-//         //if there is a border, text becomes white :)
-//         if render_box {
-//             tex_r = 1.0;
-//             tex_g = 1.0;
-//             tex_b = 1.0;
-//         }
-    
-//         gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},.{tex_r,tex_g,tex_b,1},0,0,0});
-//         cur_pos.x += glyph.advance * scale;
-//     }
-
-// }
 
 gbatch_renderer_flush :: () {
     glBindVertexArray(gr2D.vao);

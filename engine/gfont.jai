@@ -113,9 +113,9 @@ gfont_atlas_generate :: () -> gFontAtlas {
 }
 
 gfont_atlas_get_text_scale_to_fit_region :: (atlas : *gFontAtlas, s : string, region : gRect) -> float {
-    f_w,f_h :float = xx gfont_atlas_get_dim_for_string(atlas,s,1.0);
-    ratio_w := region.w / f_w;
-    ratio_h := region.h / f_h;
+    f_w,f_h : float = gfont_atlas_get_dim_for_string(atlas,s,1.0);
+    ratio_w := (region.w / f_w);
+    ratio_h := (region.h / f_h);
     return min(ratio_w, ratio_h);
 }
 
