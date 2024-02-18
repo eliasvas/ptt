@@ -80,6 +80,10 @@ grend_init :: (window : *gWin) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, grc.default_atlas.bitmap);
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    // main GUI panel inital position 
+    main_panel.x0 = 200;
+    main_panel.y0 = 200;
 }
 
 
@@ -167,6 +171,7 @@ gwin_cleanup :: (win : *gWin){
 //a tex_index, meaning which of the 3 to texture, all other parameters are the same
 
 gr2D : gBatchRenderer2D;
+main_panel : guiPanel;
 
 gBatchRenderer2D :: struct {
     quads : [..] gQuadInstance;
@@ -180,10 +185,10 @@ gBatchRenderer2D :: struct {
 }
 
 gQuadInstance :: struct {
-    p0  : gVec2; //position in window coords
-    p1  : gVec2;
-    t0  : gVec2; //tex coord in texture's units
-    t1  : gVec2;
+    p0   : gVec2; //position in window coords
+    p1   : gVec2;
+    t0   : gVec2; //tex coord in texture's units
+    t1   : gVec2;
     col0 : gVec4;
     col1 : gVec4;
     col2 : gVec4;
@@ -257,16 +262,28 @@ gbatch_renderer_2d_render :: () {
     // hello_width, hello_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,"Hello There",1.0);
     // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
 
-    if (gui_button("only!", .{500,400})) {
-        print("only! clicked!\n");
-    }
-
-    if (gui_button("general", .{200,200, 100,100})) {
+    num_categories := 3;
+    layout : guiPanelLayout = .{width = 400, row_height = 80};
+    gui_panel_layout_begin(*main_panel, *layout);
+    gui_panel_layout_add_title(*layout, "EpisodeIII");
+    gui_panel_layout_row(*layout, 3);
+    if gui_panel_layout_add_button(*layout, "master") {
         print("general clicked!\n");
     }
-    if (gui_button("kenobi", .{300,200, 150,100})) {
+    if gui_panel_layout_add_button(*layout, "kenobi") {
         print("kenobi clicked!\n");
     }
+    if gui_panel_layout_add_button(*layout, "!") {
+        print("! clicked!\n");
+    }
+    gui_panel_layout_row(*layout, 2);
+    if gui_panel_layout_add_button(*layout, "general") {
+        print("gen clicked!\n");
+    }
+    if gui_panel_layout_add_button(*layout, "grievous") {
+        print("grievous clicked!\n");
+    }
+    gui_panel_layout_end(*main_panel, *layout);
  
     fps_scale := 0.5;
     fps_counter := sprint("%", formatFloat(1000.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
@@ -279,10 +296,13 @@ gbatch_renderer_2d_render :: () {
 
 }
 
-render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4) {
+render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
     gbatch_renderer_bind_texture(grc.white_gl_tex);
-    gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
-    ////gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
+    if rounded {
+        gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
+    }else {
+        gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
+    }
 }
 
 render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float) {

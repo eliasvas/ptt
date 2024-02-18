@@ -91,6 +91,21 @@ gui_button :: (s : string, pos : gVec2) -> bool {
     return res;
 }
 
+gui_static_label :: (s : string, r : gRect) {
+    id := djb2_hash(s);
+    res := false;
+    pad_x := gui.style.button_pad_x;
+    pad_y := gui.style.button_pad_y;
+    text_r: gRect = .{r.x0 + pad_x/2, r.y0 + pad_y/2, r.w - pad_x, r.h - pad_y};
+    scale := gfont_atlas_get_text_scale_to_fit_region(*grc.default_atlas,s, text_r);
+    w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
+    text_r.y0 += text_r.h/2 - w_y/2;
+    text_r.x0 += text_r.w/2 - w_x/2;
+
+    render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_label_background_color);
+    render_basic_string(s,text_r.x0, text_r.y0, scale);
+}
+
 gui_button :: (s : string, r : gRect) -> bool {
     id := djb2_hash(s);
     res := false;
@@ -134,21 +149,77 @@ gui_button :: (s : string, r : gRect) -> bool {
 
 
 
-
 guiStyle :: struct {
     default_text_color : gVec4;
     default_color : gVec4;
+    default_label_background_color : gVec4;
+    default_panel_background_color : gVec4;
     default_active_color : gVec4;
     default_hot_color : gVec4;
+    default_pressed_color : gVec4;
+    default_released_color : gVec4;
     button_pad_x : float = 20.0;
     button_pad_y : float = 10.0;
+    panel_pad_x : float = 10.0;
+    panel_pad_y : float = 10.0;
 }
 
 gui_style_default :: () -> guiStyle {
     style : guiStyle;
     style.default_text_color = .{1.0,1.0,1.0,1.0};
     style.default_color = .{0.3,0.3,0.3,0.3};
+    style.default_label_background_color = .{0.65,0.25,0.25,0.25};
+    style.default_panel_background_color = .{0.15,0.15,0.15,0.15};
     style.default_active_color = .{0.5,0.5,0.5,0.5};
     style.default_hot_color = .{0.4,0.4,0.4,0.4};
     return style;
+}
+
+guiPanelLayout :: struct {
+    x0,y0 : float;
+    width : float;
+    row_height : float;
+    col_w : float;
+    at_x : float;
+    at_y : float;
+};
+gui_panel_layout_row :: (layout : *guiPanelLayout, column_count : int = 1) {
+    layout.at_y += layout.row_height;
+    layout.at_x = layout.x0;
+    layout.col_w = layout.width / column_count;
+}
+
+gui_panel_layout_add_button :: (layout : *guiPanelLayout, label : string) -> bool {
+    height := layout.at_y - layout.row_height;
+    pressed := gui_button(label, .{layout.at_x,height, layout.col_w,layout.row_height});
+    layout.at_x += layout.col_w;
+    return pressed;
+}
+gui_panel_layout_add_title :: (layout : *guiPanelLayout, label : string) {
+    gui_panel_layout_row(layout, 1);
+    height := layout.at_y - layout.row_height;
+    gui_static_label(label, .{layout.at_x,height, layout.col_w,layout.row_height});
+}
+
+guiPanel :: struct {
+    x0, y0 : float;
+    w, h: float;
+}
+
+gui_panel_layout_begin :: (panel : *guiPanel, layout : *guiPanelLayout) {
+    layout.x0 = panel.x0 + gui.style.panel_pad_x / 2;
+    layout.y0 = panel.y0 + gui.style.panel_pad_y / 2;
+    layout.at_x = layout.x0;
+    layout.at_y = layout.y0;
+    render_basic_box(panel.x0, panel.y0, panel.w+ gui.style.panel_pad_x,panel.h+ gui.style.panel_pad_y/2, gui.style.default_panel_background_color);
+
+    //if gim_mouse_inside_region(panel.x0, panel.y0, panel.x0 + panel.w, panel.y0 + panel.h) {
+        //if mouse pressed where label is
+        //take mouse delta and add to current panel pos
+    //}
+}
+
+gui_panel_layout_end :: (panel : *guiPanel, layout : *guiPanelLayout) {
+    panel.w = layout.width;
+    panel.h = abs(panel.y0 - layout.at_y);
 }
