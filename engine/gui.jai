@@ -106,6 +106,48 @@ gui_static_label :: (s : string, r : gRect) {
     render_basic_string(s,text_r.x0, text_r.y0, scale);
 }
 
+gui_checkbox :: (s : string, r : gRect, val : *bool) -> bool {
+    id := djb2_hash(s);
+    res := false;
+    pad_x := gui.style.button_pad_x;
+    pad_y := gui.style.button_pad_y;
+    text_r: gRect = .{r.x0 + pad_x/2, r.y0 + pad_y/2, r.w - pad_x, r.h - pad_y};
+    scale := gfont_atlas_get_text_scale_to_fit_region(*grc.default_atlas,s, text_r);
+    w_x,w_y := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
+    text_r.y0 += text_r.h/2 - w_y/2;
+    text_r.x0 += text_r.w/2 - w_x/2;
+
+    if gim_mouse_inside_region(r.x0, r.y0, r.w,r.h) {
+        gui.hot = id;
+    }
+
+    if gui.active == id {
+        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_RELEASED) {
+            if gui.hot == id {
+                val.* = !val.*;
+            }
+            gui.active = 0;
+        } 
+    }else if (gui.hot == id) {
+        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_PRESSED) {
+            gui.active = id;
+        }
+    }else {
+    }
+
+    if val.* {
+        render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_checkbox_pressed_color);
+        render_basic_string(s,text_r.x0, text_r.y0, scale);
+    }else {
+        render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_checkbox_not_pressed_color);
+        render_basic_string(s,text_r.x0, text_r.y0, scale);
+    } 
+
+    return val.*;
+}
+
+
+
 gui_button :: (s : string, r : gRect) -> bool {
     id := djb2_hash(s);
     res := false;
@@ -154,6 +196,8 @@ guiStyle :: struct {
     default_color : gVec4;
     default_label_background_color : gVec4;
     default_panel_background_color : gVec4;
+    default_checkbox_pressed_color : gVec4;
+    default_checkbox_not_pressed_color : gVec4;
     default_active_color : gVec4;
     default_hot_color : gVec4;
     default_pressed_color : gVec4;
@@ -168,9 +212,11 @@ gui_style_default :: () -> guiStyle {
     style : guiStyle;
     style.default_text_color = .{1.0,1.0,1.0,1.0};
     style.default_color = .{0.3,0.3,0.3,0.3};
-    style.default_label_background_color = .{0.65,0.25,0.25,0.25};
-    style.default_panel_background_color = .{0.15,0.15,0.15,0.15};
-    style.default_active_color = .{0.5,0.5,0.5,0.5};
+    style.default_label_background_color = .{0.65,0.25,0.25,1.0};
+    style.default_panel_background_color = .{0.15,0.15,0.15,1.0};
+    style.default_active_color = .{0.5,0.5,0.5,1.0};
+    style.default_checkbox_pressed_color = .{0.8,0.6,0.1,1.0};
+    style.default_checkbox_not_pressed_color = .{0.25,0.25,0.25,1.0};
     style.default_hot_color = .{0.4,0.4,0.4,0.4};
     return style;
 }
@@ -189,6 +235,12 @@ gui_panel_layout_row :: (layout : *guiPanelLayout, column_count : int = 1) {
     layout.col_w = layout.width / column_count;
 }
 
+gui_panel_layout_add_checkbox :: (layout : *guiPanelLayout, label : string, val : *bool) -> bool {
+    height := layout.at_y - layout.row_height;
+    on := gui_checkbox(label, .{layout.at_x,height, layout.col_w,layout.row_height}, val);
+    layout.at_x += layout.col_w;
+    return on;
+}
 gui_panel_layout_add_button :: (layout : *guiPanelLayout, label : string) -> bool {
     height := layout.at_y - layout.row_height;
     pressed := gui_button(label, .{layout.at_x,height, layout.col_w,layout.row_height});

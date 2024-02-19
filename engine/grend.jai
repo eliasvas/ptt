@@ -242,6 +242,8 @@ gbatch_renderer_2d_init :: () {
 
 }
 
+random_bool : bool = false;
+random_bool2 : bool = true;
 gbatch_renderer_2d_render :: () {
     glDisable(GL_DEPTH_TEST);
     // gbatch_renderer_bind_texture(grc.white_gl_tex);
@@ -263,16 +265,14 @@ gbatch_renderer_2d_render :: () {
     // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
 
     num_categories := 3;
-    layout : guiPanelLayout = .{width = 400, row_height = 80};
+    layout : guiPanelLayout = .{width = 300, row_height = 60};
     gui_panel_layout_begin(*main_panel, *layout);
     gui_panel_layout_add_title(*layout, "EpisodeIII");
     gui_panel_layout_row(*layout, 3);
     if gui_panel_layout_add_button(*layout, "master") {
         print("general clicked!\n");
     }
-    if gui_panel_layout_add_button(*layout, "kenobi") {
-        print("kenobi clicked!\n");
-    }
+    gui_panel_layout_add_checkbox(*layout, "kenobi",*random_bool);
     if gui_panel_layout_add_button(*layout, "!") {
         print("! clicked!\n");
     }
@@ -280,9 +280,7 @@ gbatch_renderer_2d_render :: () {
     if gui_panel_layout_add_button(*layout, "general") {
         print("gen clicked!\n");
     }
-    if gui_panel_layout_add_button(*layout, "grievous") {
-        print("grievous clicked!\n");
-    }
+    gui_panel_layout_add_checkbox(*layout, "grievous", *random_bool2);
     gui_panel_layout_end(*main_panel, *layout);
  
     fps_scale := 0.5;
