@@ -244,6 +244,7 @@ gbatch_renderer_2d_init :: () {
 
 random_bool : bool = false;
 random_bool2 : bool = true;
+random_slider_val : int = 0;
 gbatch_renderer_2d_render :: () {
     glDisable(GL_DEPTH_TEST);
     // gbatch_renderer_bind_texture(grc.white_gl_tex);
@@ -277,9 +278,7 @@ gbatch_renderer_2d_render :: () {
         print("! clicked!\n");
     }
     gui_panel_layout_row(*layout, 2);
-    if gui_panel_layout_add_button(*layout, "general") {
-        print("gen clicked!\n");
-    }
+    gui_panel_layout_add_slider(*layout, "general",*random_slider_val, 0,255);
     gui_panel_layout_add_checkbox(*layout, "grievous", *random_bool2);
     gui_panel_layout_end(*main_panel, *layout);
  
