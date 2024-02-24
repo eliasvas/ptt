@@ -10,46 +10,72 @@
 
 //converts degrees to radians
 d2r :: (deg : float) -> float {return deg * (PI / 180.0);}
+//float equals
+feq :: (a : float, b : float, error : float = 0.0001) -> bool {return abs(a - b) < error;}
 
 gVec2:: struct {
   x,y : float;
   #place x; r,g : float;
-  #place x; arr : [2] float;
+  #place x; arr : [2]float;
 }
-operator [] :: (v: gVec2, i: int) -> float {return v.arr[i];}
-operator []= :: (v: *gVec2, i: int, item: float) {v.arr[i] = item;}
-operator *[] :: (v: *gVec2, i: int) -> *gVec2 {return *v.arr[i];}
-operator *= :: (v: *gVec2, scalar: float) {for obj.arr obj.array[it] *= scalar;}
+operator [] :: (v: gVec2, i : int) -> float {return v.arr[i];}
+operator []= :: (v: *gVec2, i : int, item: float) {v.arr[i] = item;}
+operator *[] :: (v: *gVec2, i : int) -> *gVec2 {return *v.arr[i];}
+operator *= :: (v: *gVec2, scalar : float) {v.x *= scalar;v.y*=scalar;}
+operator + :: (v: gVec2, scalar : float) -> gVec2 {return .{v.x+scalar,v.y+scalar};}
+operator - :: (v: gVec2, scalar : float) -> gVec2 {return .{v.x-scalar,v.y-scalar};}
+operator * :: (v: gVec2, scalar : float) -> gVec2 {return .{v.x*scalar,v.y*scalar};}
+operator / :: (v: gVec2, scalar : float) -> gVec2 {return .{v.x/scalar,v.y/scalar};}
+operator + :: (a: gVec2, b : gVec2) -> gVec2 {return .{a.x+b.x,a.y+b.y};}
+operator - :: (a: gVec2, b : gVec2) -> gVec2 {return .{a.x-b.x,a.y-b.y};}
+operator * :: (a: gVec2, b : gVec2) -> gVec2 {return .{a.x*b.x,a.y*b.y};}
+operator / :: (a: gVec2, b : gVec2) -> gVec2 {return .{a.x/b.x,a.y/b.y};}
+gvec2_dot :: (a : gVec2, b : gVec2) -> float {return a.x*b.x+a.y*b.y;}
+gvec2_len :: (v : gVec2) -> float { return sqrt(gvec2_dot(v,v));}
+gvec2_norm :: (v : gVec2) -> gVec2 {return v*(1.0/gvec2_len(v));}
+
 gVec3:: struct {
   x,y,z : float;
   #place x; r,g,b : float;
-  #place x; arr : [3] float;
+  #place x; arr : [3]float;
 }
-operator [] :: (v: gVec3, i: int) -> float {return v.arr[i];}
-operator []= :: (v: *gVec3, i: int, item: float) {v.arr[i] = item;}
-operator *[] :: (v: *gVec3, i: int) -> *gVec3 {return *v.arr[i];}
-operator *= :: (v: *gVec3, scalar: float) {for obj.arr obj.array[it] *= scalar;}
-operator - :: (a: gVec3, b : gVec3) -> gVec3 {return .{a.x - b.x, a.y - b.y, a.z - b.z};}
-dot_gvec3 :: (a : gVec3, b : gVec3) -> float {return a.x*b.x+a.y*b.y+a.z*b.z;}
-normalize_gvec3 :: (v : gVec3) -> gVec3 {
-  ret : gVec3 = v;
-  inv_len := 1.0 / sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
-  ret.x *= inv_len;
-  ret.y *= inv_len;
-  ret.z *= inv_len;
-  return ret;
-}
-cross_gvec3 :: (lhs : gVec3, rhs : gVec3) -> gVec3 {return gVec3.{lhs.y*rhs.z - lhs.z*rhs.y, lhs.z*rhs.x - lhs.x*rhs.z, lhs.x*rhs.y - lhs.y*rhs.x};}
+operator [] :: (v: gVec3, i : int) -> float {return v.arr[i];}
+operator []= :: (v: *gVec3, i : int, item: float) {v.arr[i] = item;}
+operator *[] :: (v: *gVec3, i : int) -> *gVec3 {return *v.arr[i];}
+operator *= :: (v: *gVec3, scalar : float) {v.x *= scalar;v.y*=scalar;v.z*=scalar;}
+operator + :: (v: gVec3, scalar : float) -> gVec3 {return .{v.x+scalar,v.y+scalar,v.z+scalar};}
+operator - :: (v: gVec3, scalar : float) -> gVec3 {return .{v.x-scalar,v.y-scalar,v.z-scalar};}
+operator * :: (v: gVec3, scalar : float) -> gVec3 {return .{v.x*scalar,v.y*scalar,v.z*scalar};}
+operator / :: (v: gVec3, scalar : float) -> gVec3 {return .{v.x/scalar,v.y/scalar,v.z/scalar};}
+operator + :: (a: gVec3, b : gVec3) -> gVec3 {return .{a.x+b.x,a.y+b.y,a.z+b.z};}
+operator - :: (a: gVec3, b : gVec3) -> gVec3 {return .{a.x-b.x,a.y-b.y,a.z-b.z};}
+operator * :: (a: gVec3, b : gVec3) -> gVec3 {return .{a.x*b.x,a.y*b.y,a.z*b.z};}
+operator / :: (a: gVec3, b : gVec3) -> gVec3 {return .{a.x/b.x,a.y/b.y,a.z/b.z};}
+gvec3_dot :: (a : gVec3, b : gVec3) -> float {return a.x*b.x+a.y*b.y+a.z*b.z;}
+gvec3_len :: (v : gVec3) -> float { return sqrt(gvec3_dot(v,v));}
+gvec3_norm :: (v : gVec3) -> gVec3 {return v*(1.0/gvec3_len(v));}
+gvec3_cross :: (lhs : gVec3, rhs : gVec3) -> gVec3 {return gVec3.{lhs.y*rhs.z - lhs.z*rhs.y, lhs.z*rhs.x - lhs.x*rhs.z, lhs.x*rhs.y - lhs.y*rhs.x};}
+
 gVec4:: struct {
   x,y,z,w : float;
   #place x; r,g,b,a : float;
-  #place x; arr : [4] float;
+  #place x; arr : [4]float;
 }
-operator [] :: (v: gVec4, i: int) -> float {return v.arr[i];}
-operator []= :: (v: *gVec4, i: int, item: float) {v.arr[i] = item;}
-operator *[] :: (v: *gVec4, i: int) -> *gVec4 {return *v.arr[i];}
-operator *= :: (v: *gVec4, scalar: float) {for obj.arr obj.array[it] *= scalar;}
-
+operator [] :: (v: gVec4, i : int) -> float {return v.arr[i];}
+operator []= :: (v: *gVec4, i : int, item: float) {v.arr[i] = item;}
+operator *[] :: (v: *gVec4, i : int) -> *gVec4 {return *v.arr[i];}
+operator *= :: (v: *gVec4, scalar : float) {v.x *= scalar;v.y*=scalar;v.z*=scalar;v.w*=scalar;}
+operator + :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x+scalar,v.y+scalar,v.z+scalar,v.w+scalar};}
+operator - :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x-scalar,v.y-scalar,v.z-scalar,v.w+scalar};}
+operator * :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x*scalar,v.y*scalar,v.z*scalar,v.w*scalar};}
+operator / :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x/scalar,v.y/scalar,v.z/scalar,v.w*scalar};}
+operator + :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x+b.x,a.y+b.y,a.z+b.z,a.w+b.w};}
+operator - :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x-b.x,a.y-b.y,a.z-b.z,a.w-b.w};}
+operator * :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x*b.x,a.y*b.y,a.z*b.z,a.w*b.w};}
+operator / :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x/b.x,a.y/b.y,a.z/b.z,a.w/b.w};}
+gvec4_dot :: (a : gVec4, b : gVec4) -> float {return a.x*b.x+a.y*b.y+a.z*b.z+a.w*b.w;}
+gvec4_len :: (v : gVec4) -> float { return sqrt(gvec4_dot(v,v));}
+gvec4_norm :: (v : gVec4) -> gVec4 {return v*(1.0/gvec4_len(v));}
 
 gMat4 :: struct {
   union {
@@ -166,3 +192,31 @@ make_lookat_matrix :: (from : gVec3, to : gVec3, dummy_up : gVec3) -> gMat4 {
 gRect :: struct {
   x0,y0,w,h : float;
 }
+
+gmath_ut :: () {
+  a2 : gVec2 = .{1.0,0.0};
+  b2 : gVec2 = .{0.0,1.0};
+  assert(feq(gvec2_dot(a2,b2),0.0));
+  assert(feq(gvec2_len(a2),1.0));
+  a2 *= 2;
+  assert(feq(gvec2_len(a2),2.0));
+  assert(feq(gvec2_len(gvec2_norm(a2)),1.0));
+
+  a3 : gVec3 = .{1.0,0.0,0.0};
+  b3 : gVec3 = .{0.0,1.0,0.0};
+  assert(feq(gvec3_dot(a3,b3),0.0));
+  assert(feq(gvec3_len(a3),1.0));
+  a3 *= 3;
+  assert(feq(gvec3_len(a3),3.0));
+  assert(feq(gvec3_len(gvec3_norm(a3)),1.0));
+
+  a4 : gVec4 = .{1.0,0.0,0.0,0.0};
+  b4 : gVec4 = .{0.0,1.0,0.0,0.0};
+  assert(feq(gvec4_dot(a4,b4),0.0));
+  assert(feq(gvec4_len(a4),1.0));
+  a4 *= 4;
+  assert(feq(gvec4_len(a4),4.0));
+  assert(feq(gvec4_len(gvec4_norm(a4)),1.0));
+}
+#run gmath_test();
+
