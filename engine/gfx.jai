@@ -147,18 +147,21 @@ gfx_bind_vertex_buffer :: (b : *gfxBUF) {
 }
 
 gfx_draw_sample_scene :: () {
-    pos : gVec3 = .{0,0,-30};
+
+    gcam_update(*camera);
+    pos : gVec3 = .{xx sin(get_time()),0,-10};
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_BLEND);
 
 
     glBindVertexArray(gfx.vao);
-    aspect := 800.0 / 600.0;
+    aspect := 800.0 / 600.0; //TODO we should get fbo width height via engine context or sth??
     model_mat := make_translation_matrix(pos);
     //cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
-    cam_pos : gVec3 = .{0,xx sin(get_time()) * 20.0,0};
-    view_mat := make_lookat_matrix(cam_pos,.{0,0,-30}, .{0,1,0});
+    view_mat := gcam_make_lookat_matrix(*camera);
+    //view_mat := make_lookat_matrix(.{0,0.2,0}, .{0,0,-10}, .{0,1,0});
+    //view_mat := GM4_IDENTITY;
     ortho_mat := make_perspective_matrix(45.0, 800.0 / 600.0, 0.1, 100.0);
     glUseProgram(gfx.shader_program_3D);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "model"),1, GL_FALSE, xx *model_mat);
@@ -245,6 +248,7 @@ layout (location = 2) in vec2 aTexCoord;
 
 out vec4 col;
 out vec2 tc;
+out vec3 world_pos;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -256,12 +260,14 @@ void main()
     tc = aTexCoord;
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
     gl_Position = proj * view * model * vec4(aPos, 1.0);
+    world_pos = vec3(model * vec4(aPos, 1.0));
 }
 END;
 fragment_shader_3D_source :: #string END
 #version 330 core
 out vec4 FragColor;
 in vec2 tc;
+in vec3 world_pos;
 uniform float col_mod;
 uniform sampler2D tex;
 
@@ -270,5 +276,10 @@ in vec4 col;
 void main()
 {
     FragColor = texture(tex, tc) * (col_mod/2 + 0.5);
+    //FragColor.y = world_pos.y; 
+    //FragColor.x = 0;
+    FragColor.y = 0;
+    FragColor.x = world_pos.x; 
+    FragColor.z = 0;
 }
 END

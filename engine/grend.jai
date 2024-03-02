@@ -41,6 +41,8 @@ gTextureData :: struct {
 }
 
 
+camera : gCam;
+
 grend_init :: (window : *gWin) {
     SDL_Init(SDL_INIT_VIDEO);
     grc.default_atlas = gfont_atlas_generate();
@@ -84,6 +86,9 @@ grend_init :: (window : *gWin) {
     // main GUI panel inital position 
     main_panel.x0 = 200;
     main_panel.y0 = 200;
+
+    //initialize the main camera
+    gcam_init(*camera);
 }
 
 
@@ -145,10 +150,9 @@ gwin_update :: (win : *gWin) {
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //draw_sample_sphere_in_position(.{0,0,-30});
     gbatch_renderer_2d_render();
 
-    //gfx_draw_sample_scene();
+    gfx_draw_sample_scene();
 
     SDL_GL_SwapWindow(win.window);
 }

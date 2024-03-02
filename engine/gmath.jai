@@ -3,15 +3,22 @@
 #import "System";
 #import "Math";
 //For some reason Jai's default module has weird coordinate system, this is a try to fix it.
+//only column-major matrices are supported, likely in whichever API row-major matrices are needed, we need only transpose.
 
-//This is a good writeup on the basics of 3D math:
-//https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
-//Also Eric Lengyel's books kick ass.
+//I have been confused about 3D math for a while, finally i think
+//im getting the hang of it, some resources i found helpful:
+//https://immersivemath.com/ila/index.html
+//https://zhangdoa.com/row-major-or-column-major-some-notes-about-matrix-convention
+//https://github.com/HandmadeMath/HandmadeMath/issues/124
 
 //converts degrees to radians
 d2r :: (deg : float) -> float {return deg * (PI / 180.0);}
 //float equals
 feq :: (a : float, b : float, error : float = 0.0001) -> bool {return abs(a - b) < error;}
+offset_of :: ($T: Type, ident: Code) -> s64 #expand {
+  t: T;
+  return cast(*void) (*t.#insert ident) - cast(*void) *t;
+}
 
 gVec2:: struct {
   x,y : float;
@@ -66,9 +73,9 @@ operator []= :: (v: *gVec4, i : int, item: float) {v.arr[i] = item;}
 operator *[] :: (v: *gVec4, i : int) -> *gVec4 {return *v.arr[i];}
 operator *= :: (v: *gVec4, scalar : float) {v.x *= scalar;v.y*=scalar;v.z*=scalar;v.w*=scalar;}
 operator + :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x+scalar,v.y+scalar,v.z+scalar,v.w+scalar};}
-operator - :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x-scalar,v.y-scalar,v.z-scalar,v.w+scalar};}
+operator - :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x-scalar,v.y-scalar,v.z-scalar,v.w-scalar};}
 operator * :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x*scalar,v.y*scalar,v.z*scalar,v.w*scalar};}
-operator / :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x/scalar,v.y/scalar,v.z/scalar,v.w*scalar};}
+operator / :: (v: gVec4, scalar : float) -> gVec4 {return .{v.x/scalar,v.y/scalar,v.z/scalar,v.w/scalar};}
 operator + :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x+b.x,a.y+b.y,a.z+b.z,a.w+b.w};}
 operator - :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x-b.x,a.y-b.y,a.z-b.z,a.w-b.w};}
 operator * :: (a: gVec4, b : gVec4) -> gVec4 {return .{a.x*b.x,a.y*b.y,a.z*b.z,a.w*b.w};}
@@ -87,10 +94,6 @@ GM4_IDENTITY :: gMat4.{arr = .[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]};
 
 sample : gMat4;
 
-offset_of :: ($T: Type, ident: Code) -> s64 #expand {
-  t: T;
-  return cast(*void) (*t.#insert ident) - cast(*void) *t;
-}
 
 make_translation_matrix :: (pos : gVec3) -> gMat4 {
   mat := GM4_IDENTITY;
@@ -112,6 +115,7 @@ make_transpose_matrix :: (mat : gMat4) -> gMat4 {
 }
 
 //NOTE: (-) sign messes up formatting, maybe there is a standard fix?
+//like, to have also a + sign for positive floats
 print_mat :: (mat : gMat4) {
   //we get the row-major form to print the column matrix row-by-row
   mat_transp := make_transpose_matrix(mat); 
@@ -139,7 +143,7 @@ make_scale_matrix :: (scale : gVec3) -> gMat4 {
   mat.col[2][2] = scale.z;
   return mat;
 }
-//TODO: make these column-based indices so I know whats up
+
 make_ortho_frustum :: (l : float, r : float, b : float, t : float, n : float, f : float) -> gMat4 {
   mat := GM4_IDENTITY;
   mat.col[0][0]  = 2 / (r - l);
@@ -170,23 +174,39 @@ make_perspective_matrix :: (fov : float, aspect : float, near : float, far : flo
   width := height * aspect;
   return make_perspective_frustum(-width, width, -height, height, near, far);
 }
-make_lookat_matrix :: (from : gVec3, to : gVec3, dummy_up : gVec3) -> gMat4 {
+
+make_lookat_matrix :: (F: gVec3, R : gVec3, U : gVec3, eye : gVec3) -> gMat4 {
+  res : gMat4;
+
+  res.col[0][0] = R.x;
+  res.col[0][1] = U.x;
+  res.col[0][2] = -F.x;
+  res.col[0][3] = 0.0;
+
+  res.col[1][0] = R.y;
+  res.col[1][1] = U.y;
+  res.col[1][2] = -F.y;
+  res.col[1][3] = 0.0;
+
+  res.col[2][0] = R.z;
+  res.col[2][1] = U.z;
+  res.col[2][2] = -F.z;
+  res.col[2][3] = 0.0;
+
+  res.col[3][0] = -gvec3_dot(R, eye);
+  res.col[3][1] = -gvec3_dot(U, eye);
+  res.col[3][2] = gvec3_dot(F, eye);
+  res.col[3][3] = 1.0;
+
+  return res;
+}
+make_lookat_matrix :: (eye: gVec3, center : gVec3, dummy_up : gVec3) -> gMat4 {
   mat := GM4_IDENTITY;
 
-  fwd := from - to;
-  fwd = normalize_gvec3(fwd);
-  right := cross_gvec3(dummy_up,fwd);
-  right = normalize_gvec3(right);
-  up := cross_gvec3(right, fwd);
-  up = normalize_gvec3(up);
-
-  mat.col[0] = .{right.x,right.y,right.z,0};
-  mat.col[1] = .{up.x,up.y,up.z,0};
-  mat.col[2] = .{fwd.x,fwd.y,fwd.z,0};
-  mat.col[3] = .{-(dot_gvec3(right,from)),-(dot_gvec3(up, from)),-(dot_gvec3(fwd, from)),1};
-
-  //mat = make_transpose_matrix(mat);
-  return mat;
+  F : gVec3 = gvec3_norm(center - eye);
+  R : gVec3 = gvec3_norm(gvec3_cross(F, dummy_up));
+  U : gVec3 = gvec3_norm(gvec3_cross(R, F));
+  return make_lookat_matrix(F,R,U, eye);
 }
 
 gRect :: struct {
@@ -218,5 +238,5 @@ gmath_ut :: () {
   assert(feq(gvec4_len(a4),4.0));
   assert(feq(gvec4_len(gvec4_norm(a4)),1.0));
 }
-#run gmath_test();
+#run gmath_ut();
 
