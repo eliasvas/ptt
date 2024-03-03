@@ -67,7 +67,7 @@ generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u
     assert(x_tiles > 0);
     assert(y_tiles > 0);
     tex_data : gTextureData;
-    tex_data.data = cast (*u8) alloc (width * height * size_of(u8) * cnum, temp);
+    tex_data.data = cast (*u8) alloc (width * height * size_of(u8) * cnum);
     tex_data.dim = .{xx width, xx height};
     tex_data.cnum = cnum;
     for pix : 0..width*height+1 {
@@ -149,7 +149,7 @@ gfx_bind_vertex_buffer :: (b : *gfxBUF) {
 gfx_draw_sample_scene :: () {
 
     gcam_update(*camera);
-    pos : gVec3 = .{xx sin(get_time()),0,-10};
+    pos : gVec3 = .{xx sin(seconds_since_init()),0,-10};
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_BLEND);
@@ -158,7 +158,7 @@ gfx_draw_sample_scene :: () {
     glBindVertexArray(gfx.vao);
     aspect := 800.0 / 600.0; //TODO we should get fbo width height via engine context or sth??
     model_mat := make_translation_matrix(pos);
-    //cam_pos : gVec3 = .{10,xx sin(get_time()) * 50.0,0};
+    //cam_pos : gVec3 = .{10,xx sin(seconds_since_init()) * 50.0,0};
     view_mat := gcam_make_lookat_matrix(*camera);
     //view_mat := make_lookat_matrix(.{0,0.2,0}, .{0,0,-10}, .{0,1,0});
     //view_mat := GM4_IDENTITY;
@@ -170,7 +170,7 @@ gfx_draw_sample_scene :: () {
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
     glBindTexture(GL_TEXTURE_2D, gfx.debug_gl_tex);
     glUniform1i(glGetUniformLocation(gfx.shader_program_3D, "tex"), 0);
-    glUniform1f(glGetUniformLocation(gfx.shader_program_3D, "col_mod"), xx abs(sin(get_time()/2.0)) );
+    glUniform1f(glGetUniformLocation(gfx.shader_program_3D, "col_mod"), xx abs(sin(seconds_since_init()/2.0)) );
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
 
     //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
@@ -185,7 +185,7 @@ gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
         if !success {
             info_len : s32;
             glGetProgramiv (shader_program_id, GL_INFO_LOG_LENGTH, *info_len);
-            info_data := cast (*u8) alloc (info_len, temp);
+            info_data := cast (*u8) alloc (info_len);
             defer free(info_data);
             glGetProgramInfoLog (shader_program_id, xx info_len, xx *info_len, info_data);
             result : string;
@@ -201,7 +201,7 @@ gmake_gl_sp :: (vs_source : string, fs_source : string) -> GLuint, bool{
         if !success {
             info_len : s32;
             glGetShaderiv (shader_id, GL_INFO_LOG_LENGTH, *info_len);
-            info_data := cast (*u8) alloc (info_len, temp);
+            info_data := cast (*u8) alloc (info_len);
             defer free(info_data);
             glGetShaderInfoLog (shader_id, xx info_len, xx *info_len, info_data);
             result : string;

@@ -49,7 +49,7 @@ ges_update :: () {
     }
     gim_process_input();
     gui_update();
-    now := get_time();
+    now := seconds_since_init();
     ges.dt = (now - ges.prev_frame_time) * 1000; 
     ges.prev_frame_time = now;
 

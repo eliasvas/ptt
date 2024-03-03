@@ -48,7 +48,7 @@ gfont_get_glyph_for_character :: (face : FT_Face, c : u8) -> gFontGlyphLoose {
     byte_count := face.glyph.bitmap.width*face.glyph.bitmap.rows;
     bitmap : *u8 = alloc(size_of(u8) * byte_count);
     memcpy(dest = bitmap, source = face.glyph.bitmap.buffer, count = size_of(u8) * byte_count);
-    return .{c, xx face.glyph.bitmap.width, xx face.glyph.bitmap.rows,face.glyph.bitmap_left,face.glyph.bitmap_top, face.glyph.advance.x, bitmap};
+    return .{c, xx face.glyph.bitmap.width, xx face.glyph.bitmap.rows,face.glyph.bitmap_left,face.glyph.bitmap_top, xx face.glyph.advance.x, bitmap};
 }
 
 gFontGlyph :: struct {
@@ -73,7 +73,7 @@ gfont_atlas_generate :: () -> gFontAtlas {
     loose_glyphs := freetype_create_loose_glyphs(); 
     //defer free(loose_glyphs);
     atlas : gFontAtlas;
-    start := get_time();
+    start := seconds_since_init();
     //0. calculate the size of the texture from all gFontGlyphLoose's (for now only one dimension : sum_x,max_y)
     max_y := 0;
     sum_x := 0;
@@ -108,7 +108,7 @@ gfont_atlas_generate :: () -> gFontAtlas {
         sum_advance += loose_glyphs[i].size_x;
         //print("glyph[%]=%\n", i, atlas.glyphs[i]);
     }
-    print("Font Altas generation Done [%ms]\n", (get_time()-start)*1000);
+    print("Font Altas generation Done [%ms]\n", (seconds_since_init()-start)*1000);
     return atlas;
 }
 
