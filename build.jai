@@ -1,8 +1,6 @@
 #import "Basic";
 #import "Compiler";
 //The engine is a lib, the game is an executable ?
-//The game expects a font.ttf on the .build directory to work, you can curl -o ./.build/font.ttf -L https://github.com/ryanoasis/nerd-fonts/blob/master/patched-fonts/CascadiaCode/Regular/CaskaydiaCoveNerdFontPropo-Regular.ttf
-
 //OPTIMIZATION := Optimization_Type.DEBUG;
 build :: () {
     game_workspace := compiler_create_workspace("Game");

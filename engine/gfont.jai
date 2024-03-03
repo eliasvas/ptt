@@ -13,7 +13,7 @@ gFontGlyphLoose :: struct {
     bitmap : *u8; //one byte per pixel (opacity)
 };
 
-freetype_create_loose_glyphs :: (font_filepath : string = ".build/Roboto-Medium.ttf") -> [] gFontGlyphLoose {
+freetype_create_loose_glyphs :: (font_filepath : string = "assets/fonts/Roboto/Roboto-Medium.ttf") -> [] gFontGlyphLoose {
     ft_lib : FT_Library;
     face : FT_Face;
     //defer FT_Done_Face(face); //FIXME: There is a memory leak here? why cant we 'Done' the face tho?
@@ -25,7 +25,7 @@ freetype_create_loose_glyphs :: (font_filepath : string = ".build/Roboto-Medium.
         print("FT error: %", error);
     }
     //FIXME: This is WRONGGGGGGGG, we are we adding a path like this HUH
-    ttf_name := ".build/Roboto-Medium.ttf";
+    ttf_name := font_filepath;
     error = FT_New_Face(ft_lib, ttf_name.data, 0, *face);
     if error {
         print("error loading TTF [%] : %", ttf_name, error);

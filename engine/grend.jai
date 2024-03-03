@@ -152,7 +152,7 @@ gwin_update :: (win : *gWin) {
 
     gbatch_renderer_2d_render();
 
-    gfx_draw_sample_scene();
+    //gfx_draw_sample_scene();
 
     SDL_GL_SwapWindow(win.window);
 }
