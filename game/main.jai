@@ -5,19 +5,14 @@
 #import "Window_Creation";
 #import "../engine";
 
-//As a BASELINE game, we could start with a 2d roguelite with
-//a lot of procgen stuff, and for sure make it 3d with skeletal
-//animation, custom proc weapons? and stuff (physics?) and go from there!
-//we can turn it into a silly game anytime tho
-//the UI is VERY important and should be made FIRST!!(so immediate-style 2d renderer first!)
-
-
-//Preliminary Plan:
-//0.) Basic 2d rendering abstraction
-//1.) UI Basics
-//2.) VERY simple roguelite base 
-//This is intresting for creating dynamic worlds https://www.youtube.com/watch?v=20KHNA9jTsE and https://www.youtube.com/watch?v=zIRTOgfsjl0, maybe i can do this for dungeons
-//also this should be the base? https://rogueliketutorials.com/tutorials/tcod/v2/
+//SHITTY GAME IDEAS:
+//3D BILLBOARDS!!!! https://kenney.nl/assets
+//also i wanna procgen these! https://kenney.nl/assets/prototype-textures and maybe even 3d models out of the faces procedural meshing sounds fun
+//wfc for world generation? https://www.youtube.com/watch?v=20KHNA9jTsE and https://www.youtube.com/watch?v=zIRTOgfsjl0, maybe i can do this for dungeons
+//simplest game i can think ot is starfox zero clone (https://www.youtube.com/watch?v=GhQp8le67Xo), with predefined vertex model? (remember, minimal assets)
+//this is a nice reference: https://www.youtube.com/watch?v=QTD4d9Z7szY
+//procedural rocks??
+//we need a skybox tho huh
 
 window : gWin;
 
