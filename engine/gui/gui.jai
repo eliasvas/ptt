@@ -69,7 +69,7 @@ gui_button :: (s : string, pos : gVec2) -> bool {
     if gui.active == id {
         render_basic_box(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y), gui.style.default_active_color);
         render_basic_string(s,xx (pos.x + pad_x/2),xx (pos.y+pad_y/2), scale);
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_RELEASED) {
+        if gkey_released(xx gInputMouseKey.LMB) {
             if gui.hot == id {
                 res = true;
             }
@@ -78,7 +78,7 @@ gui_button :: (s : string, pos : gVec2) -> bool {
     }else if (gui.hot == id) {
         render_basic_box(pos.x, pos.y, xx (w_x + pad_x), xx (w_y + pad_y), gui.style.default_hot_color);
         render_basic_string(s,xx (pos.x + pad_x/2),xx (pos.y+pad_y/2), scale);
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_PRESSED) {
+        if gkey_pressed(xx gInputMouseKey.LMB) {
             gui.active = id;
         }
     }else {
@@ -122,14 +122,14 @@ gui_checkbox :: (s : string, r : gRect, val : *bool) -> bool {
     }
 
     if gui.active == id {
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_RELEASED) {
+        if gkey_released(xx gInputMouseKey.LMB) {
             if gui.hot == id {
                 val.* = !val.*;
             }
             gui.active = 0;
         } 
     }else if (gui.hot == id) {
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_PRESSED) {
+        if gkey_pressed(xx gInputMouseKey.LMB) {
             gui.active = id;
         }
     }else {
@@ -164,7 +164,7 @@ gui_button :: (s : string, r : gRect) -> bool {
     if gui.active == id {
         render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_active_color);
         render_basic_string(s,text_r.x0, text_r.y0, scale);
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_RELEASED) {
+        if gkey_released(xx gInputMouseKey.LMB) {
             if gui.hot == id {
                 res = true;
             }
@@ -173,7 +173,7 @@ gui_button :: (s : string, r : gRect) -> bool {
     }else if (gui.hot == id) {
         render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_hot_color);
         render_basic_string(s,text_r.x0, text_r.y0, scale);
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_PRESSED) {
+        if gkey_pressed(xx gInputMouseKey.LMB) {
             gui.active = id;
         }
     }else {
@@ -215,7 +215,7 @@ gui_slider :: (s : string, r : gRect, val : *int, minv : int, maxv : int) -> boo
         render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_hot_color);
         render_basic_box(slider_r.x0,slider_r.y0,slider_r.w,slider_r.h, gui.style.default_slider_pressed_color);
         render_basic_string(s,text_r.x0, text_r.y0, scale);
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_RELEASED) {
+        if gkey_released(xx gInputMouseKey.LMB) {
             if gui.hot == id {
                 res = true;
             }
@@ -225,7 +225,7 @@ gui_slider :: (s : string, r : gRect, val : *int, minv : int, maxv : int) -> boo
         render_basic_box(r.x0,r.y0,r.w,r.h, gui.style.default_hot_color);
         render_basic_box(slider_r.x0,slider_r.y0,slider_r.w,slider_r.h, gui.style.default_slider_color);
         render_basic_string(s,text_r.x0, text_r.y0, scale);
-        if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_PRESSED) {
+        if gkey_pressed(xx gInputMouseKey.LMB) {
             gui.active = id;
         }
     }else {
@@ -342,7 +342,7 @@ gui_panel_layout_end :: (panel : *guiPanel, layout : *guiPanelLayout) {
 
     mouse_over_title := gim_mouse_inside_region(panel.x0, panel.y0, panel.w, layout.row_height);
 
-    if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_DOWN && mouse_over_title) {
+    if gkey_down(xx gInputMouseKey.LMB) && mouse_over_title {
         panel.x0 += mouse_delta_x;
         panel.y0 += mouse_delta_y;
     }

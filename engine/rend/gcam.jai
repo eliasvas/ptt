@@ -22,7 +22,7 @@ gcam_init :: (cam : *gCam, initial_pos : gVec3 = .{0,0,0}) {
 }
 
 gcam_update :: (cam :*gCam, dt : float = 1.0 / 60.0) {
-    if (gim.mkey_state[gInputMouseKey.LMB] == gKeyState.KEY_DOWN) {
+    if gkey_down(xx gInputMouseKey.LMB) {
         cam.pos.z -= cam.speed * dt;
     }
 }
