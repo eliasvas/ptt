@@ -3,11 +3,26 @@
 #import "System";
 
 gKeyState :: enum u8 {
-    KEY_UP       :: 0x0;
-    KEY_PRESSED  :: 0x1;
-    KEY_RELEASED :: 0x2;
-    KEY_DOWN     :: 0x3;
+    KEY_UP       :: 0x0; // 0b00
+    KEY_PRESSED  :: 0x1; // 0b01
+    KEY_RELEASED :: 0x2; // 0b10
+    KEY_DOWN     :: 0x3; // 0b11
 };
+
+//lshift and put the current state in position 0
+gkey_update_key_state :: (prev : *gKeyState, cur : u8) { // 1 for down 0 for up
+    p : u8 = cast(u8)(prev.* << 1);
+    cs : u8 = (p | cur) & 0x3;
+    prev.* = xx cs;
+}
+//previous state is propagated to current state, any changes to key state will be added on-top 
+gkey_propagate_input_events :: (key_state : [] gKeyState) {
+    for i : 0..key_state.count-1 {
+        was_on : u8 = xx (key_state[i] & 1);
+        key_state[i] = ((key_state[i] << 1) | xx was_on) & 0x3;
+    }
+}
+
 
 gInputMouseKey :: enum u8 {
     LMB;
@@ -18,8 +33,7 @@ gInputMouseKey :: enum u8 {
 GINPUT_EVENT_TYPE :: enum {
     MOUSE_MOVE;
     MOUSE_ACTION;
-    KEY_UP;
-    KEY_DOWN;
+    KEY_ACTION;
 };
 
 gInputEvent :: struct {
@@ -30,8 +44,10 @@ gInputEvent :: struct {
 };
 
 gInputManager :: struct {
+    ASCII_RANGE :: 128;
     events : [..] gInputEvent;
     mkey_state : [3] gKeyState; 
+    kkey_state : [ASCII_RANGE] gKeyState; 
     mp_x : u32;
     mp_y : u32;
 };
@@ -39,23 +55,26 @@ gInputManager :: struct {
 gim : gInputManager;
 
 gim_process_input :: () {
-    //TODO: search up jai docs, how to do this with slice/array iteration
-    for i : 0..2 {
-        gim.mkey_state[i] = ((gim.mkey_state[i] << 1) | (gim.mkey_state[i] & 1)) & 0x3;
-    }
+    gkey_propagate_input_events(gim.mkey_state);
+    gkey_propagate_input_events(gim.kkey_state);
     for event : gim.events {
         if event.type == {
             case .MOUSE_ACTION;
-                cs : u8 = ((cast(u8)gim.mkey_state[event.data0] << 1) | (xx event.data1 & 1)) & 0x3;
-                gim.mkey_state[event.data0] = xx cs;
+                gkey_update_key_state(*gim.mkey_state[event.data0], xx (event.data1 & 1));
                 //print("mouse[%]=[%]\n", cast(gInputMouseKey)event.data0, event.data1);
             case .MOUSE_MOVE;
                 gim.mp_x = event.data0;
                 gim.mp_y = event.data1;
-                //print("mp_x=[%], mp_y=[%]\n", gim.mp_x, gim.mp_y);
+           case .KEY_ACTION;
+                if event.data0 < gInputManager.ASCII_RANGE{
+                    gkey_update_key_state(*gim.kkey_state[event.data0], xx (event.data1 & 1));
+                }
+                //print("key action for key [%]:[%]", event.data0, event.data1);
         }
         //print("event:[%]\n", event);
     }
+    //print("A state: [%]\n", cast(int)gim.kkey_state[97]);
+    //print("LMB state: [%]\n", cast(int)gim.mkey_state[0]);
     gim.events.count = 0;
 }
 
