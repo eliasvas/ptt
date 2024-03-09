@@ -2,6 +2,7 @@
 #import "Input";
 #import "System";
 
+//TODO: maybe mouse sensitivity should be in global engine config, do camera can become more/less responsive
 GCAM_MODE :: enum {
     FREE; //looks for input from mouse/keeb/gamepad and self-moves
     FIXED; //stays fixed in place until changed
@@ -12,7 +13,7 @@ gCam :: struct {
     front : gVec3;
     up : gVec3;
     mode : GCAM_MODE = .FREE;
-    speed : float = 5.0;
+    speed : float = 1.0;
 }
 
 gcam_init :: (cam : *gCam, initial_pos : gVec3 = .{0,0,0}) {
@@ -22,8 +23,18 @@ gcam_init :: (cam : *gCam, initial_pos : gVec3 = .{0,0,0}) {
 }
 
 gcam_update :: (cam :*gCam, dt : float = 1.0 / 60.0) {
-    if gkey_down(xx gInputMouseKey.LMB) {
-        cam.pos.z -= cam.speed * dt;
+    //TODO: augment input system so we can pass enums for keyboard keys not just ASCII
+    if gkey_down(119){ //key w
+        cam.pos += camera.front * cam.speed * dt;
+    }
+    if gkey_down(115){ //key s
+        cam.pos -= camera.front * cam.speed * dt;
+    }
+    if gkey_down(97){ //key a
+        cam.pos -= gvec3_norm(gvec3_cross(camera.front,camera.up)) * cam.speed * dt;
+    }
+    if gkey_down(100){ //key d
+        cam.pos += gvec3_norm(gvec3_cross(camera.front,camera.up)) * cam.speed * dt;
     }
 }
 

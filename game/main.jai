@@ -5,6 +5,8 @@
 #import "Window_Creation";
 #import "../engine";
 
+//TODO: sound generator, to get familiar with audio programming, we will write our own WAV in a dynamic array and play via Sound_Player
+
 //SHITTY GAME IDEAS:
 //3D BILLBOARDS!!!! https://kenney.nl/assets
 //also i wanna procgen these! https://kenney.nl/assets/prototype-textures and maybe even 3d models out of the faces procedural meshing sounds fun

@@ -1,18 +1,20 @@
 #import "GL";
 #import "SDL";
 
-//This will* be a _graphics API abstraction_ for OpenGL making it a bit _saner_ to use
-//The gist is we hold all OpenGL global state and do correct transitions, also no more VAOs! 
-//This might help https://developer.nvidia.com/opengl-vulkan
-//also this https://hacksoflife.blogspot.com/2015/04/the-opengl-impedance-mismatch.html
 //based on this: https://floooh.github.io/2020/02/17/sokol-gfx-backend-tour-gl.html
 //TODO: remove openGL from UI code, and make it use dis
 //TODO: also https://stackoverflow.com/questions/14249634/opengl-vaos-and-multiple-buffers AND instanced attribs
 
-sphere_verts,sphere_idx := #run generate_mesh(1,40,40,true);
+/*
+A graphics API abstraction layer over OpenGL inspired by sokol-gfx 
+Main difference with openGL is no global state and NO VAOS!
+Because of its OpenGL 3.3 compliance, this is a GREAT compatibility layer
+*/
+
+sphere_verts,sphere_idx := #run generate_sphere(1,40,40,true);
 gfxContext :: struct {
     vao : GLuint;
-    def_fbo : GLuint;
+    def_fbo : GLuint; //the default framebuffer (framebuffer 0?)
 
     shader_program_3D : GLuint;
 
@@ -63,6 +65,8 @@ gfx_context_init :: () {
 
  
 }
+
+//TODO: this procgen should be separate file
 generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u32, cnum : u32) -> gTextureData {
     assert(x_tiles > 0);
     assert(y_tiles > 0);

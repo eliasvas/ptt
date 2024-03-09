@@ -30,10 +30,10 @@ gkey_update_key_state :: (prev : *gKeyState, cur : u8) { // 1 for down 0 for up
 }
 
 gkey_is_state :: (key_idx : u8, state : gKeyState) -> bool{return gim.key_state[key_idx] == state;}
-gkey_up :: (key_idx : u8) -> bool{return gkey_is_state(key_idx, gKeyState.KEY_UP);}
 gkey_released :: (key_idx : u8) -> bool{return gkey_is_state(key_idx, gKeyState.KEY_RELEASED);}
 gkey_pressed :: (key_idx : u8) -> bool{return gkey_is_state(key_idx, gKeyState.KEY_PRESSED);}
-gkey_down :: (key_idx : u8) -> bool{return gkey_is_state(key_idx, gKeyState.KEY_DOWN);}
+gkey_up :: (key_idx : u8) -> bool{return gkey_is_state(key_idx, gKeyState.KEY_UP) | gkey_is_state(key_idx, gKeyState.KEY_RELEASED);}
+gkey_down :: (key_idx : u8) -> bool{return gkey_is_state(key_idx, gKeyState.KEY_DOWN) | gkey_is_state(key_idx, gKeyState.KEY_PRESSED);}
 
 gInputMouseKey :: enum u8 {
     LMB;

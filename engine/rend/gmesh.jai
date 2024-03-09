@@ -4,6 +4,7 @@
 #import "Math";
 #import "GL";
 #import "SDL";
+//TODO: generate rect -> generate cube (same tc) -> generate skybox?!
 
 //alignment
 gVertex :: struct {
@@ -19,7 +20,7 @@ make_vertex :: () -> gVertex {
 
 //Generates a simple sphere mesh
 //for reference: songho.ca/opengl/gl_sphere.html#example_sphere/
-generate_mesh :: (radius : float = 1.0, sector_count : u32 = 8, stack_count : u32 = 8, indexed : bool = false) -> [..] gVertex, [..] u32 {
+generate_sphere :: (radius : float = 1.0, sector_count : u32 = 8, stack_count : u32 = 8, indexed : bool = false) -> [..] gVertex, [..] u32 {
     vertices : [..] gVec3;
     normals : [..] gVec3;
     tex_coords : [..] gVec2;
