@@ -13,7 +13,7 @@ gCam :: struct {
     front : gVec3;
     up : gVec3;
     mode : GCAM_MODE = .FREE;
-    speed : float = 1.0;
+    speed : float = 8.0;
 }
 
 gcam_init :: (cam : *gCam, initial_pos : gVec3 = .{0,0,0}) {

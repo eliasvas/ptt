@@ -152,8 +152,8 @@ gfx_bind_vertex_buffer :: (b : *gfxBUF) {
 
 gfx_draw_sample_scene :: () {
 
-    gcam_update(*camera);
-    pos : gVec3 = .{xx sin(seconds_since_init()),0,-10};
+    gcam_update(*camera,xx ges.dt);
+    pos : gVec3 = .{xx sin(2*seconds_since_init()),0,-10};
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_BLEND);

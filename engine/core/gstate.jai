@@ -8,6 +8,8 @@ gEngineGlobalState :: struct {
     dt : float64;
     prev_frame_time : float64;
     window_resized : bool;
+    prev_frame_mouse_x : float;
+    prev_frame_mouse_y : float;
     //array of events gathered from SDL equivalents??
 }
 
@@ -19,8 +21,10 @@ ges_init :: () {
 }
 
 ges_update :: () {
+    ges.prev_frame_mouse_x = xx gim.mp_x;
+    ges.prev_frame_mouse_y = xx gim.mp_y;
     ges.window_resized = false;
-    SDL_Delay(1);//ms to delay update
+    //SDL_Delay(16);//ms to delay update
     event : SDL_Event;
     while SDL_PollEvent(*event) {
         if event.type == {
@@ -55,11 +59,10 @@ ges_update :: () {
     gim_process_input();
     gui_update();
     now := seconds_since_init();
-    ges.dt = (now - ges.prev_frame_time) * 1000; 
+    ges.dt = now - ges.prev_frame_time;  //delta time is in seconds
     ges.prev_frame_time = now;
 
-
     //print("ms: %\n", ges.dt);
-    //print("fps: %\n", 1000.0 / ges.dt);
+    //print("fps: %\n", 1.0 / ges.dt);
 
 }

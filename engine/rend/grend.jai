@@ -287,7 +287,7 @@ gbatch_renderer_2d_render :: () {
     gui_panel_layout_end(*main_panel, *layout);
  
     fps_scale := 0.5;
-    fps_counter := sprint("%", formatFloat(1000.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
+    fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
     defer free(fps_counter.data);
     fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
     color : u32 = 0xFFFFFFFF;
