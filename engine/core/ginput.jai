@@ -58,8 +58,8 @@ gInputManager :: struct {
     ASCII_RANGE :: 128;
     events : [..] gInputEvent;
     key_state : [ASCII_RANGE] gKeyState; 
-    mp_x : u32;
-    mp_y : u32;
+    mp_x : float;
+    mp_y : float;
 };
 
 gim : gInputManager;
@@ -72,8 +72,8 @@ gim_process_input :: () {
                 gkey_update_key_state(*gim.key_state[event.data0], xx (event.data1 & 1));
                 //print("mouse[%]=[%]\n", cast(gInputMouseKey)event.data0, event.data1);
             case .MOUSE_MOVE;
-                gim.mp_x = event.data0;
-                gim.mp_y = event.data1;
+                gim.mp_x = xx event.data0;
+                gim.mp_y = xx event.data1;
            case .KEY_ACTION;
                 if event.data0 < gInputManager.ASCII_RANGE{
                     gkey_update_key_state(*gim.key_state[event.data0], xx (event.data1 & 1));
@@ -96,8 +96,8 @@ gim_push_event :: (event : gInputEvent) {
 
 //TODO: maybe we need a gRect struct for such cases (in the math library? some core file? IDK)
 gim_mouse_inside_region :: (p_x : float, p_y : float, w_x : float, w_y : float) -> bool {
-    mp_x : float = xx gim.mp_x;
-    mp_y : float = xx gim.mp_y;
+    mp_x :float = gim.mp_x;
+    mp_y :float = gim.mp_y;
     if (mp_x <= p_x + w_x) && (mp_x >= p_x) && (mp_y >= p_y) && (mp_y <= p_y + w_y) then return true;
     return false;
 }
