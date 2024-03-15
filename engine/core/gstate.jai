@@ -24,7 +24,7 @@ ges_update :: () {
     ges.prev_frame_mouse_x = xx gim.mp_x;
     ges.prev_frame_mouse_y = xx gim.mp_y;
     ges.window_resized = false;
-    SDL_Delay(16);//ms to delay update
+    //SDL_Delay(16);//ms to delay update
     event : SDL_Event;
     while SDL_PollEvent(*event) {
         if event.type == {

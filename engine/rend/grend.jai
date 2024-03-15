@@ -48,6 +48,12 @@ grend_init :: (window : *gWin) {
     grc.default_atlas = gfont_atlas_generate();
     grc.window_ref = window;
     glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+    //glFrontFace(GL_CW);
+    //glFrontFace(GL_CCW);
+    //glCullFace(GL_BACK);
+    //glCullFace(GL_FRONT);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
@@ -84,8 +90,8 @@ grend_init :: (window : *gWin) {
     glGenerateMipmap(GL_TEXTURE_2D);
 
     // main GUI panel inital position 
-    main_panel.x0 = 200;
-    main_panel.y0 = 200;
+    main_panel.x0 = 500;
+    main_panel.y0 = 100;
 
     //initialize the main camera
     gcam_init(*camera);
@@ -150,9 +156,10 @@ gwin_update :: (win : *gWin) {
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    gbatch_renderer_2d_render();
 
     gfx_draw_sample_scene();
+
+    gbatch_renderer_2d_render();
 
     SDL_GL_SwapWindow(win.window);
 }
@@ -295,6 +302,7 @@ gbatch_renderer_2d_render :: () {
     render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
     gbatch_renderer_flush();
 
+    glEnable(GL_DEPTH_TEST);
 }
 
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {

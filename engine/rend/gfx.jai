@@ -154,19 +154,20 @@ gfx_draw_sample_scene :: () {
 
     gcam_update(*camera,xx ges.dt);
     pos : gVec3 = .{xx sin(2*seconds_since_init()),0,-10};
-    glClearColor(0.1, 0.1, 0.1, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_BLEND);
+    //glClearColor(0.1, 0.1, 0.1, 1.0);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glDisable(GL_BLEND);
 
 
     glBindVertexArray(gfx.vao);
     aspect := 800.0 / 600.0; //TODO we should get fbo width height via engine context or sth??
     model_mat := make_translation_matrix(pos);
     view_mat := gcam_make_lookat_matrix(*camera);
-    ortho_mat := make_perspective_matrix(1.57 /2.0, 800.0 / 600.0, 0.1, 50.0);
-    //ortho_mat := make_ortho_frustum(-10,10,-10,10,0.1,100);
+    proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
+    //proj_mat := make_ortho_frustum(-10,10,-10,10,0.1,100);
+    
     glUseProgram(gfx.shader_program_3D);
-    glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "proj"), 1, GL_FALSE, xx *ortho_mat);
+    glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "proj"), 1, GL_FALSE, xx *proj_mat);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "model"), 1, GL_FALSE, xx *model_mat);
     glUniformMatrix4fv(glGetUniformLocation(gfx.shader_program_3D, "view"), 1, GL_FALSE, xx *view_mat);
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
@@ -277,7 +278,7 @@ in vec4 col;
 
 void main()
 {
-    FragColor = texture(tex, tc) * vec4(world_pos.x,1,1,1);
+    FragColor = texture(tex, tc) * vec4(1,1,1,1);
     //FragColor.y = world_pos.y; 
     //FragColor.x = 0;
     //FragColor.y = 0;

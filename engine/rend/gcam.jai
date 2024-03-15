@@ -39,7 +39,7 @@ gcam_update :: (cam :*gCam, dt : float = 1.0 / 60.0) {
         cam.pos += gvec3_norm(gvec3_cross(camera.front,camera.up)) * cam.speed * dt;
     }
 
-    if gkey_down(xx gInputMouseKey.LMB) {
+    if gkey_down(xx gInputMouseKey.RMB) {
         prev_frame_mp_x : float = ges.prev_frame_mouse_x;
         prev_frame_mp_y : float = ges.prev_frame_mouse_y;
 

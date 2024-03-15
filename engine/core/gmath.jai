@@ -168,11 +168,24 @@ make_perspective_frustum :: (l : float, r : float, b : float, t : float, n : flo
 
 make_perspective_matrix :: (fov : float, aspect : float, near : float, far : float) -> gMat4 {
   fov_rad := d2r(fov);
-  fov_rad = 2.0 * atan(tan(fov * 0.5) / aspect); //transform to vertical fov
-  tangent := tan(fov_rad / 2.0);
-  height := near * tangent;
-  width := height * aspect;
-  return make_perspective_frustum(-width, width, -height, height, near, far);
+  // fov_rad := d2r(fov);
+  // fov_rad = 2.0 * atan(tan(fov * 0.5) / aspect); //transform to vertical fov
+  // tangent := tan(fov_rad / 2.0);
+  // height := near * tangent;
+  // width := height * aspect;
+  // return make_perspective_frustum(-width, width, -height, height, near, far);
+
+    // See https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
+  res := GM4_IDENTITY;
+
+  cot : float= 1.0 / tan(fov_rad / 2.0);
+  res.col[0][0] = cot / aspect;
+  res.col[1][1] = cot;
+  res.col[2][3] = -1.0;
+
+  res.col[2][2] = (near + far) / (near - far);
+  res.col[3][2] = (2.0 * near * far) / (near - far);
+  return res;
 }
 
 make_lookat_matrix :: (F: gVec3, R : gVec3, U : gVec3, eye : gVec3) -> gMat4 {
