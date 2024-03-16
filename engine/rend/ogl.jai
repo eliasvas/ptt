@@ -166,7 +166,7 @@ ogl_shader_object_set_uniform :: (so : *oglShaderObject, uniform_name : string, 
         case oglShaderUniformType.MAT4;
             glUniformMatrix4fv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, GL_FALSE, cast(*float)val);
         case;
-            print("default case\n"); // because there is no #through statement, this print will be ignored
+            print("uknown shader type\n");
     }
 }
 

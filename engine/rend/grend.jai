@@ -90,7 +90,7 @@ grend_init :: (window : *gWin) {
     glGenerateMipmap(GL_TEXTURE_2D);
 
     // main GUI panel inital position 
-    main_panel.x0 = 500;
+    main_panel.x0 = 600;
     main_panel.y0 = 100;
 
     //initialize the main camera
@@ -255,6 +255,7 @@ gbatch_renderer_2d_init :: () {
 
 random_bool : bool = false;
 random_bool2 : bool = true;
+random_bool3 : bool = true;
 random_slider_val : int = 0;
 gbatch_renderer_2d_render :: () {
     glDisable(GL_DEPTH_TEST);
@@ -277,20 +278,18 @@ gbatch_renderer_2d_render :: () {
     // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
 
     num_categories := 3;
-    layout : guiPanelLayout = .{width = 300, row_height = 60};
+    layout : guiPanelLayout = .{width = 200, row_height = 60};
     gui_panel_layout_begin(*main_panel, *layout);
-    gui_panel_layout_add_title(*layout, "EpisodeIII");
+    gui_panel_layout_add_title(*layout, "graphics");
     gui_panel_layout_row(*layout, 3);
-    if gui_panel_layout_add_button(*layout, "master") {
-        print("general clicked!\n");
-    }
-    gui_panel_layout_add_checkbox(*layout, "kenobi",*random_bool);
-    if gui_panel_layout_add_button(*layout, "!") {
-        print("! clicked!\n");
+    gui_panel_layout_add_checkbox(*layout, "bloom",*random_bool);
+    gui_panel_layout_add_checkbox(*layout, "negative",*random_bool3);
+    if gui_panel_layout_add_button(*layout, "x") {
+        print("x!\n");
     }
     gui_panel_layout_row(*layout, 2);
-    gui_panel_layout_add_slider(*layout, "general",*random_slider_val, 0,255);
-    gui_panel_layout_add_checkbox(*layout, "grievous", *random_bool2);
+    gui_panel_layout_add_checkbox(*layout, "emissive", *random_bool2);
+    gui_panel_layout_add_slider(*layout, "factor",*random_slider_val, 0,255);
     gui_panel_layout_end(*main_panel, *layout);
  
     fps_scale := 0.5;

@@ -4,6 +4,7 @@
 #import "Math";
 #import "GL";
 #import "SDL";
+//TODO: now that a sphere has been generated, maybe we need some way to procgen basic PBR textures
 //TODO: generate rect -> generate cube (same tc) -> generate skybox?!
 
 //alignment
