@@ -154,28 +154,9 @@ make_ortho_frustum :: (l : float, r : float, b : float, t : float, n : float, f 
   mat.col[3][2] = -(f + n) / (f - n);
   return mat;
 }
-make_perspective_frustum :: (l : float, r : float, b : float, t : float, n : float, f : float) -> gMat4 {
-  mat : gMat4;
-  mat.col[0][0]  = 2.0 * n / (r - l);
-  mat.col[1][1]  = 2.0 * n / (t - b);
-  mat.col[2][0] = (r + l) / (r - l);
-  mat.col[2][1] = (t + b) / (t - b);
-  mat.col[2][2] = -(f + n) / (f - n);
-  mat.col[2][3] = -1.0;
-  mat.col[3][2]  = -2.0 * n * f / (f - n);
-  return mat;
-}
 
 make_perspective_matrix :: (fov : float, aspect : float, near : float, far : float) -> gMat4 {
   fov_rad := d2r(fov);
-  // fov_rad := d2r(fov);
-  // fov_rad = 2.0 * atan(tan(fov * 0.5) / aspect); //transform to vertical fov
-  // tangent := tan(fov_rad / 2.0);
-  // height := near * tangent;
-  // width := height * aspect;
-  // return make_perspective_frustum(-width, width, -height, height, near, far);
-
-    // See https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
   res := GM4_IDENTITY;
 
   cot : float= 1.0 / tan(fov_rad / 2.0);

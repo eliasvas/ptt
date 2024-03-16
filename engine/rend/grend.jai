@@ -58,7 +58,7 @@ grend_init :: (window : *gWin) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
     gbatch_renderer_2d_init();
-    gfx_context_init();
+    ogl_init();
 
     //white texture initialization
     glGenTextures(1, *grc.white_gl_tex);
@@ -157,7 +157,7 @@ gwin_update :: (win : *gWin) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-    gfx_draw_sample_scene();
+    ogl_draw_sample_scene();
 
     gbatch_renderer_2d_render();
 

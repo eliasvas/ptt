@@ -48,9 +48,9 @@ GINPUT_EVENT_TYPE :: enum {
 };
 
 gInputEvent :: struct {
-    data0 : u32;
-    data1 : u32;
-    data2 : u32;
+    data0 : s64;
+    data1 : s64;
+    data2 : s64;
     type : GINPUT_EVENT_TYPE;
 };
 

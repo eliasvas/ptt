@@ -5,7 +5,7 @@
 #load "gui/gui.jai";
 #load "gui/gfont.jai";
 
-#load "rend/gfx.jai";
+#load "rend/ogl.jai";
 #load "rend/grend.jai";
 #load "rend/gmesh.jai";
 #load "rend/gcam.jai";
