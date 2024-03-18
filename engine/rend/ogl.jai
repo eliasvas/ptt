@@ -145,6 +145,7 @@ ogl_reset_gl :: () {
 //----------------------------------------------------------------------------
 // - oglShaderObject 
 // TODO: shader attribs don't work, we just globally se like in openGL, we need to fix this! (maybe slots?) 
+// TODO: vertex attributes should be stored here no?
 //----------------------------------------------------------------------------
 
 ogl_bind_shader_object :: (so : *oglShaderObject){

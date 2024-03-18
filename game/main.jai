@@ -7,14 +7,13 @@
 
 //TODO: sound generator, to get familiar with audio programming, we will write our own WAV in a dynamic array and play via Sound_Player
 
-//SHITTY GAME IDEAS:
-//3D BILLBOARDS!!!! https://kenney.nl/assets
-//also i wanna procgen these! https://kenney.nl/assets/prototype-textures and maybe even 3d models out of the faces procedural meshing sounds fun
-//wfc for world generation? https://www.youtube.com/watch?v=20KHNA9jTsE and https://www.youtube.com/watch?v=zIRTOgfsjl0, maybe i can do this for dungeons
-//simplest game i can think ot is starfox zero clone (https://www.youtube.com/watch?v=GhQp8le67Xo), with predefined vertex model? (remember, minimal assets)
-//this is a nice reference: https://www.youtube.com/watch?v=QTD4d9Z7szY
-//procedural rocks??
-//we need a skybox tho huh
+//SHITTY GAME IDEA to test the engine works as expected:
+//Maybe this can lead to CLAY shaded pacman or similar test game??? not sure if possible in glsl tho (similar to this https://www.youtube.com/watch?v=mbVCrNdKaMk)
+//The order we need stuff is gui -> compmlete ogl + deferred pseudo PBR -> basic gameplay / menus -> skeletal animations -> extra gameplay likep powerups
+//EXTRA: The "deformation" of the clay could partially be controlled by the music!! haven't really delved into audio tho so thats a nice little project
+//EXTRA: a particle system for eating stuff / dying / killing / speedup will make the game fire
+//PREREQ: smoothed cube + its PBR textures will be needed maybe!
+//Maybe I should speedrun with what I have to make it playable and THEN polish with clay PBR shader / new ui system / decibel thing wtv
 
 window : gWin;
 
