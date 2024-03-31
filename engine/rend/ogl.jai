@@ -2,8 +2,12 @@
 #import "SDL";
 
 //based on this: https://floooh.github.io/2020/02/17/sokol-gfx-backend-tour-gl.html
+
 //TODO: remove openGL from UI code, and make it use dis
-//TODO: also https://stackoverflow.com/questions/14249634/opengl-vaos-and-multiple-buffers AND instanced attribs
+//TODO: right now we don't really handle global state, we SHOULD
+//TODO: all 'objects' should have same interface e.g init/create/make delete/cleanup/dealloc JUST CHOOSE ONE
+//TODO: all USER facing calls e.g bind_vertex_buffer should at least have a pointer to the oglContext for state-keeping 
+//TODO: also after that make alloc dealloc ofor all ogl's data types, we have some garbare rn i think
 
 /*
 A graphics API abstraction layer over-OpenGL inspired by sokol-gfx 
@@ -22,11 +26,9 @@ oglContext :: struct {
     sphere_vbo : oglBuf;
     sphere_ibo : oglBuf;
 
-    debug_gl_tex : GLuint;
-    debug_tex : gTextureData;
+    debug_tex : oglImage;
 
-    MAX_VERTEX_ATTRIBS :: 16;
-    MAX_TEXTURE_SLOT   ::  8;
+    MAX_TEX_SLOTS :: 8;
 }
 
 //GLOBAL holding test stuff like vbo/textues, 
@@ -47,20 +49,14 @@ ogl_init :: () {
     ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(1, oglShaderDataType.VEC3, size_of(gVertex), xx offset_of(gVertex, #code norm)));
     ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(2, oglShaderDataType.VEC2, size_of(gVertex), xx offset_of(gVertex, #code tex_coord)));
 
-    ogl_clear_all();
-
     //debug texture initialization
-    glGenTextures(1, *ogl_ctx.debug_gl_tex);
-    glBindTexture(GL_TEXTURE_2D, ogl_ctx.debug_gl_tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    ogl_ctx.debug_tex = generate_debug_texture(400, 400, 8, 8, 4);
-    //the texture data is in GPU memory via glTexImage2D, we can free after
-    defer free(ogl_ctx.debug_tex.data);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, ogl_ctx.debug_tex.data);
-    glGenerateMipmap(GL_TEXTURE_2D);
+    t_w : u32 = 400;
+    t_h : u32 = 400;
+    debug_tex := generate_debug_texture(t_w, t_h, 8, 8, 4);
+    defer free(debug_tex.data);
+    ogl_image_init(*ogl_ctx.debug_tex, debug_tex.data, t_w, t_h, oglImageFormat.RGBA);
+
+    ogl_clear_all();
 }
 
 //TODO: this procgen should be separate file
@@ -118,16 +114,56 @@ ogl_clear_all :: () {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    for i : 0..oglContext.MAX_TEX_SLOTS-1 {
+        glActiveTexture(GL_TEXTURE0 + cast(u32)i);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
     //...
     //...
     //...
     glBindVertexArray(ogl_ctx.vao);
 }
+//----------------------------------------------------------------------------
+// - oglImage
+// Handles render targets (color/depth) AND regular images
+//TODO: different image formats (especially floating point)
+//----------------------------------------------------------------------------
+oglImageType :: enum {
+    TEXTURE;
+    RT_DS;
+    RT_COL;
+};
+
+oglImageFormat :: enum {
+    RGBA;
+}
+oglImage :: struct {
+    handle : GLuint;
+}
+
+ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, format : oglImageFormat) -> bool {
+    glGenTextures(1, *img.handle);
+    glBindTexture(GL_TEXTURE_2D, img.handle);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, xx tex_data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    return (img.handle != 0);
+}
+
+ogl_bind_image_to_texture_slot :: (img : *oglImage, tex_slot : u32) {
+    glActiveTexture(GL_TEXTURE0 + tex_slot);
+    glBindTexture(GL_TEXTURE_2D, img.handle);
+}
+
 
 //----------------------------------------------------------------------------
 // - oglShaderObject 
-// TODO: shader attribs don't work, we just globally se like in openGL, we need to fix this! (maybe slots?) 
-// TODO: vertex attributes should be stored here no?
+//TODO: multiple vertex buffers not supported https://stackoverflow.com/questions/14249634/opengl-vaos-and-multiple-buffers
 //----------------------------------------------------------------------------
 
 ogl_make_attrib :: (vbo_idx : u32, type : oglShaderDataType, stride : u32, offset : u32, indexed : bool = false) -> oglShaderAttrib {
@@ -202,6 +238,10 @@ ogl_shader_object_bind_attribs :: (so : *oglShaderObject){
     for i : 0..so.attribs.count-1 {
         ogl_bind_attrib(*ogl_ctx.sp3D.attribs[i]);
     }
+}
+
+ogl_shader_object_bind_sampler_to_slot :: (so : *oglShaderObject, uniform_name : string, tex_slot : u32){
+    ogl_shader_object_set_uniform(so, uniform_name, oglShaderDataType.INT, xx *tex_slot);
 }
 
 ogl_shader_object_set_uniform :: (so : *oglShaderObject, uniform_name : string, type : oglShaderDataType, val : *Any){
@@ -316,12 +356,11 @@ ogl_bind_vertex_buffer :: (b : *oglBuf) {
 }
 
 ogl_draw_sample_scene :: () {
-
+    ogl_clear_all();
     gcam_update(*camera,xx ges.dt);
     pos : gVec3 = .{xx sin(2*seconds_since_init()),0,-10};
 
-    ogl_clear_all();
-    aspect := 800.0 / 600.0; //TODO we should get fbo width height via engine context or sth??
+    aspect := 800.0 / 600.0; 
     model_mat := make_translation_matrix(pos);
     view_mat := gcam_make_lookat_matrix(*camera);
     proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
@@ -332,10 +371,9 @@ ogl_draw_sample_scene :: () {
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-    glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
-    glBindTexture(GL_TEXTURE_2D, ogl_ctx.debug_gl_tex);
-    tex : int = 0;
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tex", oglShaderDataType.INT, xx *tex);
+    tex_slot0 : int = 0;
+    ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, xx tex_slot0);
+    ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", xx *tex_slot0);
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
 
     ogl_clear_all();
