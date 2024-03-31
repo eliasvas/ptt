@@ -355,6 +355,36 @@ ogl_bind_vertex_buffer :: (b : *oglBuf) {
     glBindBuffer(GL_ARRAY_BUFFER, b.handle);
 }
 
+oglPrimitive :: enum {
+    TRIANGLES;
+    TRIANGLE_LIST;
+    TRIANGLE_FAN;
+}
+
+ogl_prim_to_gl_prim :: (prim : oglPrimitive) -> GLuint {
+    gl_p : GLuint= GL_TRIANGLES;
+    if prim == {
+        case .TRIANGLES;
+            gl_p = GL_TRIANGLES;
+        case .TRIANGLE_LIST;
+            gl_p = GL_TRIANGLE_STRIP;
+        case .TRIANGLE_FAN;
+            gl_p = GL_TRIANGLE_FAN;
+        case;
+        assert(false);
+    }
+    return gl_p;
+}
+
+
+ogl_draw :: (prim : oglPrimitive, first : u32, count : u32) {
+    glDrawArrays(ogl_prim_to_gl_prim(prim), first, count);
+}
+
+ogl_draw_indexed :: (prim : oglPrimitive, count : u32) {
+    glDrawElements(ogl_prim_to_gl_prim(prim), count, GL_UNSIGNED_INT, xx 0);
+}
+
 ogl_draw_sample_scene :: () {
     ogl_clear_all();
     gcam_update(*camera,xx ges.dt);
@@ -374,7 +404,7 @@ ogl_draw_sample_scene :: () {
     tex_slot0 : int = 0;
     ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, xx tex_slot0);
     ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", xx *tex_slot0);
-    glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
+    ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
 
     ogl_clear_all();
 }
