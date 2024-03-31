@@ -24,6 +24,9 @@ oglContext :: struct {
 
     debug_gl_tex : GLuint;
     debug_tex : gTextureData;
+
+    MAX_VERTEX_ATTRIBS :: 16;
+    MAX_TEXTURE_SLOT   ::  8;
 }
 
 //GLOBAL holding test stuff like vbo/textues, 
@@ -33,27 +36,18 @@ ogl_ctx : oglContext;
 
 ogl_init :: () {
     glGenVertexArrays(1, *ogl_ctx.vao);
-    glBindVertexArray(ogl_ctx.vao);
+    ogl_clear_all();
 
     ogl_ctx.sphere_ibo = ogl_make_buffer(.INDEX, sphere_idx.data, sphere_idx.count, size_of(u32));
-    ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
     ogl_ctx.sphere_vbo = ogl_make_buffer(.VERTEX, sphere_verts.data, sphere_verts.count, size_of(gVertex));
-    ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
 
     ogl_shader_object_init(*ogl_ctx.sp3D,vertex_shader_3D_source, fragment_shader_3D_source);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code pos));
-    glVertexAttribDivisor(1, 0);
-    glEnableVertexAttribArray(0);   
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code norm));
-    glVertexAttribDivisor(1, 0);
-    glEnableVertexAttribArray(1); 
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gVertex), xx offset_of(gVertex, #code tex_coord));
-    glVertexAttribDivisor(2, 0);
-    glEnableVertexAttribArray(2);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(0, oglShaderDataType.VEC3, size_of(gVertex), xx offset_of(gVertex, #code pos)));
+    ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(1, oglShaderDataType.VEC3, size_of(gVertex), xx offset_of(gVertex, #code norm)));
+    ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(2, oglShaderDataType.VEC2, size_of(gVertex), xx offset_of(gVertex, #code tex_coord)));
+
+    ogl_clear_all();
 
     //debug texture initialization
     glGenTextures(1, *ogl_ctx.debug_gl_tex);
@@ -67,8 +61,6 @@ ogl_init :: () {
     defer free(ogl_ctx.debug_tex.data);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, ogl_ctx.debug_tex.data);
     glGenerateMipmap(GL_TEXTURE_2D);
-
- 
 }
 
 //TODO: this procgen should be separate file
@@ -115,31 +107,21 @@ oglBuf :: struct {
 
 oglShaderAttrib :: struct {
     //OpenGL State 
-    vbo_index : s8; // -1 if attrib empty 
-    divisor : s8;  // -1 if not initialized 
-    stride : u8;
-    size : u8;
-    norm : u8;
-    offset : int;
-    type : GLenum;
+    vbo_idx : u32;
+    stride : u32;
+    offset : u32;
+    type : oglShaderDataType;
+    indexed : bool;
 }
 
-oglShaderObject :: struct {
-    attribs : [16] oglShaderAttrib; //this should be set once!
-    //OpenGL State 
-    gl_program : GLuint;
-}
-oglShaderUniformType :: enum {
-    FLOAT;
-    INT;
-    VEC2;
-    VEC3;
-    VEC4;
-    MAT4;
-};
-
-ogl_reset_gl :: () {
+ogl_clear_all :: () {
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    //...
+    //...
+    //...
+    glBindVertexArray(ogl_ctx.vao);
 }
 
 //----------------------------------------------------------------------------
@@ -148,23 +130,93 @@ ogl_reset_gl :: () {
 // TODO: vertex attributes should be stored here no?
 //----------------------------------------------------------------------------
 
-ogl_bind_shader_object :: (so : *oglShaderObject){
-    glUseProgram(so.gl_program);
+ogl_make_attrib :: (vbo_idx : u32, type : oglShaderDataType, stride : u32, offset : u32, indexed : bool = false) -> oglShaderAttrib {
+    sa : oglShaderAttrib;
+    sa.vbo_idx = vbo_idx;
+    sa.stride = stride;
+    sa.offset = offset;
+    sa.type = type;
+    sa.indexed = indexed;
+    return sa;
 }
 
-ogl_shader_object_set_uniform :: (so : *oglShaderObject, uniform_name : string, type : oglShaderUniformType, val : *Any){
+ogl_bind_attrib :: (attrib : *oglShaderAttrib) {
+    glEnableVertexAttribArray(attrib.vbo_idx);
+    if attrib.type == oglShaderDataType.INT
+        glVertexAttribIPointer(attrib.vbo_idx, xx ogl_get_component_num_for_data_type(attrib.type), GL_FLOAT, attrib.stride, xx attrib.offset);
+    else
+        glVertexAttribPointer(attrib.vbo_idx, xx ogl_get_component_num_for_data_type(attrib.type), GL_FLOAT, GL_FALSE, attrib.stride, xx attrib.offset);
+    glVertexAttribDivisor(attrib.vbo_idx,xx attrib.indexed);
+}
+
+ogl_get_component_num_for_data_type :: (type : oglShaderDataType) -> u32 {
+    comp_count : u32 = 0;
     if type == {
-        case oglShaderUniformType.INT;
+        case .FLOAT;
+            comp_count = 1;
+        case .INT;
+            comp_count = 1;
+        case .VEC2;
+            comp_count = 2;
+        case .VEC3;
+            comp_count = 3;
+        case .VEC4;
+            comp_count = 4;
+        case .MAT4;
+            comp_count = 16;
+        case;
+        assert(false);
+    }
+    return comp_count;
+}
+
+oglShaderObject :: struct {
+    attribs : [..] oglShaderAttrib; //this should be set once!
+    //OpenGL State 
+    gl_program : GLuint;
+}
+oglShaderDataType :: enum {
+    FLOAT;
+    INT;
+    VEC2;
+    VEC3;
+    VEC4;
+    MAT4;
+};
+
+
+ogl_bind_shader_object :: (so : *oglShaderObject){
+    glUseProgram(so.gl_program);
+    ogl_shader_object_bind_attribs(so);
+}
+
+ogl_shader_object_cleanup :: (so : *oglShaderObject) {
+    array_free(*so.attribs);
+}
+
+ogl_shader_object_add_attrib :: (so : *oglShaderObject, attrib : oglShaderAttrib) {
+    array_add(*so.attribs, attrib);
+}
+
+ogl_shader_object_bind_attribs :: (so : *oglShaderObject){
+    for i : 0..so.attribs.count-1 {
+        ogl_bind_attrib(*ogl_ctx.sp3D.attribs[i]);
+    }
+}
+
+ogl_shader_object_set_uniform :: (so : *oglShaderObject, uniform_name : string, type : oglShaderDataType, val : *Any){
+    if type == {
+        case oglShaderDataType.INT;
             glUniform1iv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, cast(*s32)val);
-        case oglShaderUniformType.FLOAT;
+        case oglShaderDataType.FLOAT;
             glUniform1fv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, cast(*float)val);
-        case oglShaderUniformType.VEC2;
+        case oglShaderDataType.VEC2;
             glUniform2fv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, cast(*float)val);
-        case oglShaderUniformType.VEC3;
+        case oglShaderDataType.VEC3;
             glUniform3fv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, cast(*float)val);
-        case oglShaderUniformType.VEC4;
+        case oglShaderDataType.VEC4;
             glUniform4fv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, cast(*float)val);
-        case oglShaderUniformType.MAT4;
+        case oglShaderDataType.MAT4;
             glUniformMatrix4fv(glGetUniformLocation(so.gl_program, uniform_name.data), 1, GL_FALSE, cast(*float)val);
         case;
             print("uknown shader type\n");
@@ -268,25 +320,25 @@ ogl_draw_sample_scene :: () {
     gcam_update(*camera,xx ges.dt);
     pos : gVec3 = .{xx sin(2*seconds_since_init()),0,-10};
 
-    glBindVertexArray(ogl_ctx.vao);
+    ogl_clear_all();
     aspect := 800.0 / 600.0; //TODO we should get fbo width height via engine context or sth??
     model_mat := make_translation_matrix(pos);
     view_mat := gcam_make_lookat_matrix(*camera);
     proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
-    
+
+    ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
+    ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
     ogl_bind_shader_object(*ogl_ctx.sp3D);
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderUniformType.MAT4, xx *model_mat);
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderUniformType.MAT4, xx *view_mat);
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderUniformType.MAT4, xx *proj_mat);
+    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
+    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
+    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
     glActiveTexture(GL_TEXTURE0);//activate texture unit 0 before binding the texture
     glBindTexture(GL_TEXTURE_2D, ogl_ctx.debug_gl_tex);
     tex : int = 0;
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tex", oglShaderUniformType.INT, xx *tex);
+    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tex", oglShaderDataType.INT, xx *tex);
     glDrawElements(GL_TRIANGLES, sphere_idx.count,GL_UNSIGNED_INT, xx 0);
 
-    //glDrawArrays(GL_TRIANGLES, 0, sphere_verts.count);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    ogl_clear_all();
 }
 
 
