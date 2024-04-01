@@ -81,8 +81,7 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
     sdl_win_args := SDL_WINDOW_OPENGL;
     sdl_win_args |= ifx opt & .RESIZABLE then SDL_WINDOW_RESIZABLE;
     sdl_win_args |= ifx opt & .VISIBLE then SDL_WINDOW_SHOWN;
-    win.window = SDL_CreateWindow("Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                    xx win.dim.x, xx win.dim.y, sdl_win_args);
+    win.window = SDL_CreateWindow("Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xx win.dim.x, xx win.dim.y, sdl_win_args);
 
     if win.window == null {
         print("Could not create window: %\n", to_string(SDL_GetError()));
@@ -149,8 +148,8 @@ gBatchRenderer2D :: struct {
 
     //OpenGL garbo
     vao : GLuint;
-    vbo : GLuint;
-    sp : GLuint;
+    vbo : oglBuf;
+    sp : oglShaderObject;
 
     last_bound_tex : GLuint;
 }
@@ -170,11 +169,12 @@ gQuadInstance :: struct {
 }
 
 gbatch_renderer_2d_init :: () {
-    gr2D.sp = gmake_gl_sp(vertex_shader_ui_source, fragment_shader_ui_source);
+    ogl_shader_object_init(*gr2D.sp,vertex_shader_ui_source, fragment_shader_ui_source);
+
     glGenVertexArrays(1, *gr2D.vao);
     glBindVertexArray(gr2D.vao);
-    glGenBuffers(1, *gr2D.vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
+    gr2D.vbo = ogl_make_buffer(.VERTEX, null, 0, 0);
+    ogl_bind_vertex_buffer(*gr2D.vbo);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0));
     glVertexAttribDivisor(0, 1);
     glEnableVertexAttribArray(0); 
@@ -277,10 +277,10 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
 
 gbatch_renderer_flush :: () {
     glBindVertexArray(gr2D.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, gr2D.vbo);
-    glBufferData(GL_ARRAY_BUFFER, gr2D.quads.count * size_of(gQuadInstance),gr2D.quads.data, GL_STREAM_DRAW);
-    glUseProgram(gr2D.sp);
-    glUniform2f(glGetUniformLocation(gr2D.sp, "res"), xx grc.window_ref.dim.x, xx grc.window_ref.dim.y);
+    ogl_bind_vertex_buffer(*gr2D.vbo);
+    ogl_update_buffer(*gr2D.vbo, gr2D.quads.data, cast(u32)gr2D.quads.count, size_of(gQuadInstance));
+    ogl_bind_shader_object(*gr2D.sp);
+    ogl_shader_object_set_uniform(*gr2D.sp,"res",oglShaderDataType.VEC2, xx *grc.window_ref.dim);
 
     ogl_shader_set_dynamic_state(oglShaderDynamicState.DEPTH_DISABLED | oglShaderDynamicState.BLENDING);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
@@ -291,13 +291,13 @@ gbatch_renderer_bind_texture :: (tex : GLuint) {
     if (tex != gr2D.last_bound_tex) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
-        glUniform1i(glGetUniformLocation(gr2D.sp, "tex"), 0);
+        ogl_shader_object_bind_sampler_to_slot(*gr2D.sp, "tex", 0);
         gbatch_renderer_flush();
     }
     gr2D.last_bound_tex = tex;
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
-    glUniform1i(glGetUniformLocation(gr2D.sp, "tex"), 0);
+    ogl_shader_object_bind_sampler_to_slot(*gr2D.sp, "tex", 0);
 
 }
 

@@ -388,6 +388,7 @@ ogl_make_buffer :: (type : oglBufType, data : *void, data_count : u32, data_size
     return buf;
 }
 ogl_update_buffer :: (buf : *oglBuf, data : *void, data_count : u32, data_size : u32) {
+    ogl_bind_vertex_buffer(buf);
     buf.count = data_count;
     buf.size = data_size * data_count;
     buffer_type := ifx buf.type == .VERTEX then GL_ARRAY_BUFFER else GL_ELEMENT_ARRAY_BUFFER;
