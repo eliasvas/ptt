@@ -12,17 +12,10 @@
 
 gRendContext :: struct {
 
-    // sphere_vao : GLuint;
-    // sphere_vbo : GLuint;
-    // sphere_ibo : GLuint;
+    debug_tex : oglImage;
+    white_tex : oglImage;
+    font_tex: oglImage;
 
-    debug_tex : gTextureData;
-    debug_gl_tex : GLuint;
-
-    white_tex : gTextureData;
-    white_gl_tex : GLuint;
-
-    font_gl_tex : GLuint;
     default_atlas : gFontAtlas;
     //+ a command buffer?!
 
@@ -47,47 +40,14 @@ grend_init :: (window : *gWin) {
     SDL_Init(SDL_INIT_VIDEO);
     grc.default_atlas = gfont_atlas_generate();
     grc.window_ref = window;
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LESS);
-    //glFrontFace(GL_CW);
-    //glFrontFace(GL_CCW);
-    //glCullFace(GL_BACK);
-    //glCullFace(GL_FRONT);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
     gbatch_renderer_2d_init();
     ogl_init();
 
     //white texture initialization
-    glGenTextures(1, *grc.white_gl_tex);
-    glBindTexture(GL_TEXTURE_2D, grc.white_gl_tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    grc.white_tex = generate_debug_texture(400, 400, 1, 1, 4);
-    //the texture data is in GPU memory via glTexImage2D, we can free after
-    defer free(grc.white_tex.data);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 400, 400, 0, GL_RGBA, GL_UNSIGNED_BYTE, grc.white_tex.data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-
-    //font atlas initialization
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glGenTextures(1, *grc.font_gl_tex);
-    glBindTexture(GL_TEXTURE_2D, grc.font_gl_tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, 0, GL_RED, GL_UNSIGNED_BYTE, grc.default_atlas.bitmap);
-    glGenerateMipmap(GL_TEXTURE_2D);
+    white_tex := generate_debug_texture(400, 400, 1, 1, 4);
+    defer free(white_tex.data);
+    ogl_image_init(*grc.white_tex, white_tex.data, 400, 400, oglImageFormat.RGBA);
+    ogl_image_init(*grc.font_tex, grc.default_atlas.bitmap, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, oglImageFormat.RGBA,true);
 
     // main GUI panel inital position 
     main_panel.x0 = 600;
@@ -258,25 +218,6 @@ random_bool2 : bool = true;
 random_bool3 : bool = true;
 random_slider_val : int = 0;
 gbatch_renderer_2d_render :: () {
-    glDisable(GL_DEPTH_TEST);
-    // gbatch_renderer_bind_texture(grc.white_gl_tex);
-    // gbatch_renderer_push_quad(.{.{0,0},.{302,302}, .{0,0}, .{0,0},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},10,3,0.0});
-    // gbatch_renderer_bind_texture(grc.debug_gl_tex);
-    // gbatch_renderer_push_quad(.{.{2,2},.{300,300}, .{0,0}, .{400,400},.{0,1,0,1},.{1,0,1,1},.{1,1,0,1},.{1,0,1,1},10,3,0.0});
-    // gbatch_renderer_bind_texture(grc.font_gl_tex);
-    // glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "e");
-    // print("glyph e : %\n",glyph);
-    // glyph2 := gfont_atlas_get_glyph_for_character(*grc.default_atlas, #char "H");
-    // print("glyph H : %\n",glyph2);
-    // scale := 2.0;
-    // gbatch_renderer_bind_texture(grc.white_gl_tex);
-    // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},.{1,0,0,1},0,0,0});
-    // gbatch_renderer_bind_texture(grc.font_gl_tex);
-    // gbatch_renderer_push_quad(.{.{300,100},.{300.0 + glyph.size_x * scale ,100.0 + glyph.size_y * scale}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},.{1,1,1,1},0,0,0});
-
-    // hello_width, hello_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,"Hello There",1.0);
-    // render_basic_string("Hello There",xx (grc.window_ref.dim.x/2 - hello_width/2),xx( grc.window_ref.dim.y /2 - hello_height/2), 1.0,U32_MAX /2, true);
-
     num_categories := 3;
     layout : guiPanelLayout = .{width = 200, row_height = 60};
     gui_panel_layout_begin(*main_panel, *layout);
@@ -300,12 +241,10 @@ gbatch_renderer_2d_render :: () {
     color = (color << 20);
     render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
     gbatch_renderer_flush();
-
-    glEnable(GL_DEPTH_TEST);
 }
 
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
-    gbatch_renderer_bind_texture(grc.white_gl_tex);
+    gbatch_renderer_bind_texture(grc.white_tex.handle);
     if rounded {
         gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
     }else {
@@ -324,7 +263,7 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
         tallest_size_y = max(tallest_size_y, glyph.bearing_y);
     }
 
-    gbatch_renderer_bind_texture(grc.font_gl_tex);
+    gbatch_renderer_bind_texture(grc.font_tex.handle);
     cur_pos := start;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
@@ -342,6 +281,8 @@ gbatch_renderer_flush :: () {
     glBufferData(GL_ARRAY_BUFFER, gr2D.quads.count * size_of(gQuadInstance),gr2D.quads.data, GL_STREAM_DRAW);
     glUseProgram(gr2D.sp);
     glUniform2f(glGetUniformLocation(gr2D.sp, "res"), xx grc.window_ref.dim.x, xx grc.window_ref.dim.y);
+
+    ogl_shader_set_dynamic_state(oglShaderDynamicState.DEPTH_DISABLED | oglShaderDynamicState.BLENDING);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
     gr2D.quads.count = 0;
 }

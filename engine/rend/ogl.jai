@@ -129,6 +129,25 @@ ogl_clear_all :: () {
     //...
     //...
     glBindVertexArray(ogl_ctx.vao);
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+}
+//----------------------------------------------------------------------------
+// - oglShaderDymamicState
+//----------------------------------------------------------------------------
+oglShaderDynamicState :: enum {
+    DEPTH_DISABLED :: 1;
+    BLENDING :: 2;
+}
+
+ogl_shader_set_dynamic_state :: (state : oglShaderDynamicState) {
+    if (cast(u32)state) & (1 << oglShaderDynamicState.DEPTH_DISABLED-1) {
+        glDisable(GL_DEPTH_TEST);
+    }
+    if (cast(u32)state) & (1 << oglShaderDynamicState.BLENDING-1) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+    }
 }
 //----------------------------------------------------------------------------
 // - oglImage
@@ -162,6 +181,9 @@ ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fo
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, xx tex_data);
+        glGenerateMipmap(GL_TEXTURE_2D);
     } else  {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -254,7 +276,6 @@ ogl_shader_object_add_attrib :: (so : *oglShaderObject, attrib : oglShaderAttrib
 }
 
 ogl_shader_object_bind_attribs :: (so : *oglShaderObject){
-    print("attribs count: 0->%", so.attribs.count-1);
     for i : 0..so.attribs.count-1 {
         ogl_bind_attrib(*so.attribs[i]);
     }
