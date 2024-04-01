@@ -455,9 +455,8 @@ ogl_draw_sample_scene :: () {
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-    tex_slot0 : int = 0;
-    ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, xx tex_slot0);
-    ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", xx *tex_slot0);
+    ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
+    ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
     ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
 
     ogl_clear_all();

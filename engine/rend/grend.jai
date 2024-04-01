@@ -146,12 +146,10 @@ main_panel : guiPanel;
 gBatchRenderer2D :: struct {
     quads : [..] gQuadInstance;
 
-    //OpenGL garbo
-    vao : GLuint;
     vbo : oglBuf;
     sp : oglShaderObject;
 
-    last_bound_tex : GLuint;
+    last_bound_tex : oglImage;
 }
 
 gQuadInstance :: struct {
@@ -171,46 +169,22 @@ gQuadInstance :: struct {
 gbatch_renderer_2d_init :: () {
     ogl_shader_object_init(*gr2D.sp,vertex_shader_ui_source, fragment_shader_ui_source);
 
-    glGenVertexArrays(1, *gr2D.vao);
-    glBindVertexArray(gr2D.vao);
     gr2D.vbo = ogl_make_buffer(.VERTEX, null, 0, 0);
     ogl_bind_vertex_buffer(*gr2D.vbo);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0));
-    glVertexAttribDivisor(0, 1);
-    glEnableVertexAttribArray(0); 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1));
-    glVertexAttribDivisor(1, 1);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0));
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1));
-    glVertexAttribDivisor(3, 1);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0));
-    glVertexAttribDivisor(4, 1);
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1));
-    glVertexAttribDivisor(5, 1);
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2));
-    glVertexAttribDivisor(6, 1);
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3));
-    glVertexAttribDivisor(7, 1);
-    glEnableVertexAttribArray(7);
-    glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius));
-    glVertexAttribDivisor(8, 1);
-    glEnableVertexAttribArray(8);
-    glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness));
-    glVertexAttribDivisor(9, 1);
-    glEnableVertexAttribArray(9);
-    glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness));
-    glVertexAttribDivisor(10, 1);
-    glEnableVertexAttribArray(10);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+    
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(0, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(1, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(2, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(3, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(4, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(5, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(6, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(7, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(8, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(9, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness),true));
+    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(10, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness),true));
+    
+    ogl_clear_all();
 }
 
 random_bool : bool = false;
@@ -244,7 +218,7 @@ gbatch_renderer_2d_render :: () {
 }
 
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
-    gbatch_renderer_bind_texture(grc.white_tex.handle);
+    gbatch_renderer_bind_texture(grc.white_tex);
     if rounded {
         gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
     }else {
@@ -263,7 +237,7 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
         tallest_size_y = max(tallest_size_y, glyph.bearing_y);
     }
 
-    gbatch_renderer_bind_texture(grc.font_tex.handle);
+    gbatch_renderer_bind_texture(grc.font_tex);
     cur_pos := start;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
@@ -276,32 +250,31 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
 }
 
 gbatch_renderer_flush :: () {
-    glBindVertexArray(gr2D.vao);
+    ogl_clear_all();
     ogl_bind_vertex_buffer(*gr2D.vbo);
     ogl_update_buffer(*gr2D.vbo, gr2D.quads.data, cast(u32)gr2D.quads.count, size_of(gQuadInstance));
     ogl_bind_shader_object(*gr2D.sp);
     ogl_shader_object_set_uniform(*gr2D.sp,"res",oglShaderDataType.VEC2, xx *grc.window_ref.dim);
-
     ogl_shader_set_dynamic_state(oglShaderDynamicState.DEPTH_DISABLED | oglShaderDynamicState.BLENDING);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count);
+
+    ogl_bind_image_to_texture_slot(*gr2D.last_bound_tex, 0);
+    ogl_shader_object_bind_sampler_to_slot(*gr2D.sp, "tex", 0);
+
+    ogl_draw_instanced(oglPrimitive.TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count); 
     gr2D.quads.count = 0;
+    ogl_clear_all();
 }
-//TODO: make this engine texture, not OpenGL
-gbatch_renderer_bind_texture :: (tex : GLuint) {
-    if (tex != gr2D.last_bound_tex) {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
-        ogl_shader_object_bind_sampler_to_slot(*gr2D.sp, "tex", 0);
+
+gbatch_renderer_bind_texture :: (tex : oglImage) {
+    //TODO: some id system should be done for ALL resources from ogl
+    if (tex.handle != gr2D.last_bound_tex.handle) {
+        //render with current last_bound_tex to clear the quad stretchy buffer
         gbatch_renderer_flush();
     }
     gr2D.last_bound_tex = tex;
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gr2D.last_bound_tex);
-    ogl_shader_object_bind_sampler_to_slot(*gr2D.sp, "tex", 0);
-
 }
 
-gbatch_renderer_push_quad :: (q : gQuadInstance, tex : GLuint = 0) {
+gbatch_renderer_push_quad :: (q : gQuadInstance) {
     //print("Quad pushed: %\n", q);
     //if tex then gbatch_renderer_bind_texture(tex, win);
     array_add(*gr2D.quads, q);
