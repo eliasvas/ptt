@@ -8,6 +8,7 @@
 //TODO: all 'objects' should have same interface e.g init/create/make delete/cleanup/dealloc JUST CHOOSE ONE
 //TODO: all USER facing calls e.g bind_vertex_buffer should at least have a pointer to the oglContext for state-keeping 
 //TODO: also after that make alloc dealloc ofor all ogl's data types, we have some garbare rn i think
+//TODO: viewport/scissor/clearing
 
 /*
 A graphics API abstraction layer over-OpenGL inspired by sokol-gfx 
@@ -29,6 +30,7 @@ oglContext :: struct {
     debug_tex : oglImage;
 
     MAX_TEX_SLOTS :: 8;
+    MAX_ATTRIBS   :: 16;
 }
 
 //GLOBAL holding test stuff like vbo/textues, 
@@ -107,13 +109,16 @@ oglShaderAttrib :: struct {
     stride : u32;
     offset : u32;
     type : oglShaderDataType;
-    indexed : bool;
+    instanced : bool;
 }
 
 ogl_clear_all :: () {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    for i : 0..oglContext.MAX_ATTRIBS-1 {
+        glDisableVertexAttribArray(cast(u32)i);
+    }
     for i : 0..oglContext.MAX_TEX_SLOTS-1 {
         glActiveTexture(GL_TEXTURE0 + cast(u32)i);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -141,17 +146,31 @@ oglImageFormat :: enum {
 }
 oglImage :: struct {
     handle : GLuint;
+    format : oglImageFormat;
 }
 
-ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, format : oglImageFormat) -> bool {
+ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, format : oglImageFormat, is_font : bool = false) -> bool {
     glGenTextures(1, *img.handle);
     glBindTexture(GL_TEXTURE_2D, img.handle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, xx tex_data);
-    glGenerateMipmap(GL_TEXTURE_2D);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
+    if is_font {
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+    } else  {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, xx tex_data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    img.format = format;
     return (img.handle != 0);
 }
 
@@ -166,13 +185,13 @@ ogl_bind_image_to_texture_slot :: (img : *oglImage, tex_slot : u32) {
 //TODO: multiple vertex buffers not supported https://stackoverflow.com/questions/14249634/opengl-vaos-and-multiple-buffers
 //----------------------------------------------------------------------------
 
-ogl_make_attrib :: (vbo_idx : u32, type : oglShaderDataType, stride : u32, offset : u32, indexed : bool = false) -> oglShaderAttrib {
+ogl_make_attrib :: (vbo_idx : u32, type : oglShaderDataType, stride : u32, offset : u32, instanced : bool = false) -> oglShaderAttrib {
     sa : oglShaderAttrib;
     sa.vbo_idx = vbo_idx;
     sa.stride = stride;
     sa.offset = offset;
     sa.type = type;
-    sa.indexed = indexed;
+    sa.instanced = instanced;
     return sa;
 }
 
@@ -182,7 +201,7 @@ ogl_bind_attrib :: (attrib : *oglShaderAttrib) {
         glVertexAttribIPointer(attrib.vbo_idx, xx ogl_get_component_num_for_data_type(attrib.type), GL_FLOAT, attrib.stride, xx attrib.offset);
     else
         glVertexAttribPointer(attrib.vbo_idx, xx ogl_get_component_num_for_data_type(attrib.type), GL_FLOAT, GL_FALSE, attrib.stride, xx attrib.offset);
-    glVertexAttribDivisor(attrib.vbo_idx,xx attrib.indexed);
+    glVertexAttribDivisor(attrib.vbo_idx, cast(u32)attrib.instanced);
 }
 
 ogl_get_component_num_for_data_type :: (type : oglShaderDataType) -> u32 {
@@ -235,8 +254,9 @@ ogl_shader_object_add_attrib :: (so : *oglShaderObject, attrib : oglShaderAttrib
 }
 
 ogl_shader_object_bind_attribs :: (so : *oglShaderObject){
+    print("attribs count: 0->%", so.attribs.count-1);
     for i : 0..so.attribs.count-1 {
-        ogl_bind_attrib(*ogl_ctx.sp3D.attribs[i]);
+        ogl_bind_attrib(*so.attribs[i]);
     }
 }
 
@@ -265,7 +285,7 @@ ogl_shader_object_set_uniform :: (so : *oglShaderObject, uniform_name : string, 
 
 ogl_shader_object_init :: (so : *oglShaderObject, vs_source : string, fs_source : string) ->  bool{
     res : bool;
-    so.gl_program,res = gmake_gl_sp(vertex_shader_3D_source, fragment_shader_3D_source);
+    so.gl_program,res = gmake_gl_sp(vs_source, fs_source);
     return res;
 }
 
@@ -342,9 +362,17 @@ ogl_make_buffer :: (type : oglBufType, data : *void, data_count : u32, data_size
 
     glGenBuffers(1, *buf.handle);
     glBindBuffer(xx buffer_type, buf.handle);
-    glBufferData(xx buffer_type, buf.size,data, GL_STATIC_DRAW); //TODO: make a type for DYNAMIC/STATIC/STREAM?
+    ogl_update_buffer(*buf, data,data_count,data_size);
     glBindBuffer(xx buffer_type, 0);
     return buf;
+}
+ogl_update_buffer :: (buf : *oglBuf, data : *void, data_count : u32, data_size : u32) {
+    buf.count = data_count;
+    buf.size = data_size * data_count;
+    buffer_type := ifx buf.type == .VERTEX then GL_ARRAY_BUFFER else GL_ELEMENT_ARRAY_BUFFER;
+    if data != null {
+        glBufferData(xx buffer_type, buf.size,data, GL_STREAM_DRAW); //TODO: make a type for DYNAMIC/STATIC/STREAM?
+    }
 }
 
 ogl_bind_index_buffer :: (b : *oglBuf) {
@@ -357,7 +385,7 @@ ogl_bind_vertex_buffer :: (b : *oglBuf) {
 
 oglPrimitive :: enum {
     TRIANGLES;
-    TRIANGLE_LIST;
+    TRIANGLE_STRIP;
     TRIANGLE_FAN;
 }
 
@@ -366,7 +394,7 @@ ogl_prim_to_gl_prim :: (prim : oglPrimitive) -> GLuint {
     if prim == {
         case .TRIANGLES;
             gl_p = GL_TRIANGLES;
-        case .TRIANGLE_LIST;
+        case .TRIANGLE_STRIP;
             gl_p = GL_TRIANGLE_STRIP;
         case .TRIANGLE_FAN;
             gl_p = GL_TRIANGLE_FAN;
@@ -379,6 +407,10 @@ ogl_prim_to_gl_prim :: (prim : oglPrimitive) -> GLuint {
 
 ogl_draw :: (prim : oglPrimitive, first : u32, count : u32) {
     glDrawArrays(ogl_prim_to_gl_prim(prim), first, count);
+}
+
+ogl_draw_instanced :: (prim : oglPrimitive, first : u32, count : u32, instance_count : u32) {
+    glDrawArraysInstanced(ogl_prim_to_gl_prim(prim), cast(s32)first, count, instance_count);
 }
 
 ogl_draw_indexed :: (prim : oglPrimitive, count : u32) {
