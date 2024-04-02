@@ -22,7 +22,7 @@ build :: () {
 
 
         set_build_options(target_options, game_workspace);
-        add_build_file(tprint("game/main.jai"), game_workspace);
+        add_build_file(tprint("game/game.jai"), game_workspace);
         set_build_options_dc(.{do_output=false});
     }
 

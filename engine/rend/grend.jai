@@ -49,9 +49,9 @@ grend_init :: (window : *gWin) {
     ogl_image_init(*grc.white_tex, white_tex.data, 400, 400, oglImageFormat.RGBA);
     ogl_image_init(*grc.font_tex, grc.default_atlas.bitmap, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, oglImageFormat.RGBA,true);
 
-    // main GUI panel inital position 
-    main_panel.x0 = 600;
-    main_panel.y0 = 100;
+    // // main GUI panel inital position 
+    // main_panel.x0 = 600;
+    // main_panel.y0 = 100;
 
     //initialize the main camera
     gcam_init(*camera);
@@ -74,14 +74,14 @@ GWIN_OPT :: enum {
     RESIZABLE;
 }
 
-gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
+gwin_create :: (name : string, ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
     win : gWin = .{.{xx ww, xx wh}, opt, null};
 
     
     sdl_win_args := SDL_WINDOW_OPENGL;
     sdl_win_args |= ifx opt & .RESIZABLE then SDL_WINDOW_RESIZABLE;
     sdl_win_args |= ifx opt & .VISIBLE then SDL_WINDOW_SHOWN;
-    win.window = SDL_CreateWindow("Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xx win.dim.x, xx win.dim.y, sdl_win_args);
+    win.window = SDL_CreateWindow(name.data, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, xx win.dim.x, xx win.dim.y, sdl_win_args);
 
     if win.window == null {
         print("Could not create window: %\n", to_string(SDL_GetError()));
@@ -99,6 +99,7 @@ gwin_create :: (ww : s32, wh : s32, opt : GWIN_OPT) -> gWin {
 }
  
 gwin_update :: (win : *gWin) {
+    SDL_GL_SwapWindow(win.window);
     gwin_resize_if_necessary :: (win : *gWin) {
         if ges.window_resized {
             ww : s32;
@@ -115,12 +116,6 @@ gwin_update :: (win : *gWin) {
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-    ogl_draw_sample_scene();
-
-    gbatch_renderer_2d_render();
-
-    SDL_GL_SwapWindow(win.window);
 }
 
 gwin_cleanup :: (win : *gWin){
@@ -141,7 +136,7 @@ gwin_cleanup :: (win : *gWin){
 //a tex_index, meaning which of the 3 to texture, all other parameters are the same
 
 gr2D : gBatchRenderer2D;
-main_panel : guiPanel;
+//main_panel : guiPanel;
 
 gBatchRenderer2D :: struct {
     quads : [..] gQuadInstance;
@@ -191,31 +186,32 @@ random_bool : bool = false;
 random_bool2 : bool = true;
 random_bool3 : bool = true;
 random_slider_val : int = 0;
-gbatch_renderer_2d_render :: () {
-    num_categories := 3;
-    layout : guiPanelLayout = .{width = 200, row_height = 60};
-    gui_panel_layout_begin(*main_panel, *layout);
-    gui_panel_layout_add_title(*layout, "graphics");
-    gui_panel_layout_row(*layout, 3);
-    gui_panel_layout_add_checkbox(*layout, "bloom",*random_bool);
-    gui_panel_layout_add_checkbox(*layout, "negative",*random_bool3);
-    if gui_panel_layout_add_button(*layout, "x") {
-        print("x!\n");
-    }
-    gui_panel_layout_row(*layout, 2);
-    gui_panel_layout_add_checkbox(*layout, "emissive", *random_bool2);
-    gui_panel_layout_add_slider(*layout, "factor",*random_slider_val, 0,255);
-    gui_panel_layout_end(*main_panel, *layout);
+
+// gbatch_renderer_2d_sample_render :: () {
+//     num_categories := 3;
+//     layout : guiPanelLayout = .{width = 200, row_height = 60};
+//     gui_panel_layout_begin(*main_panel, *layout);
+//     gui_panel_layout_add_title(*layout, "graphics");
+//     gui_panel_layout_row(*layout, 3);
+//     gui_panel_layout_add_checkbox(*layout, "bloom",*random_bool);
+//     gui_panel_layout_add_checkbox(*layout, "negative",*random_bool3);
+//     if gui_panel_layout_add_button(*layout, "x") {
+//         print("x!\n");
+//     }
+//     gui_panel_layout_row(*layout, 2);
+//     gui_panel_layout_add_checkbox(*layout, "emissive", *random_bool2);
+//     gui_panel_layout_add_slider(*layout, "factor",*random_slider_val, 0,255);
+//     gui_panel_layout_end(*main_panel, *layout);
  
-    fps_scale := 0.5;
-    fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
-    defer free(fps_counter.data);
-    fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
-    color : u32 = 0xFFFFFFFF;
-    color = (color << 20);
-    render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
-    gbatch_renderer_flush();
-}
+//     fps_scale := 0.5;
+//     fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
+//     defer free(fps_counter.data);
+//     fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
+//     color : u32 = 0xFFFFFFFF;
+//     color = (color << 20);
+//     render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
+//     gbatch_renderer_flush();
+// }
 
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
     gbatch_renderer_bind_texture(grc.white_tex);

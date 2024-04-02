@@ -253,10 +253,10 @@ guiStyle :: struct {
     default_hot_color : gVec4;
     default_pressed_color : gVec4;
     default_released_color : gVec4;
-    button_pad_x : float = 20.0;
-    button_pad_y : float = 10.0;
-    panel_pad_x : float = 10.0;
-    panel_pad_y : float = 10.0;
+    button_pad_x : float = 30.0;
+    button_pad_y : float = 20.0;
+    panel_pad_x : float = 20.0;
+    panel_pad_y : float = 20.0;
     slider_w : float = 20.0;
 }
 
@@ -318,6 +318,7 @@ guiPanel :: struct {
     w, h: float;
 
     m_x, m_y : float;
+    moveable : bool = false;
 }
 
 gui_panel_layout_begin :: (panel : *guiPanel, layout : *guiPanelLayout) {
@@ -342,7 +343,7 @@ gui_panel_layout_end :: (panel : *guiPanel, layout : *guiPanelLayout) {
 
     mouse_over_title := gim_mouse_inside_region(panel.x0, panel.y0, panel.w, layout.row_height);
 
-    if gkey_down(xx gInputMouseKey.LMB) && mouse_over_title {
+    if gkey_down(xx gInputMouseKey.LMB) && mouse_over_title && panel.moveable {
         panel.x0 += mouse_delta_x;
         panel.y0 += mouse_delta_y;
     }
