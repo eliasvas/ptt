@@ -16,6 +16,9 @@ GameScene :: enum {
 }
 GameState :: struct {
   current_scene : GameScene = .MAIN_MENU;
+  animations_on : bool = true;
+  effects_on : bool = false;
+  game_volume : int = 80;
   window : gWin;
 }
 game_init :: (state : *GameState) {
@@ -42,7 +45,7 @@ game_update :: (state : *GameState) {
     case .MAIN_MENU;
       do_main_menu(*gs);
     case .OPTIONS_MENU;
-      do_main_menu(*gs);
+      do_options_menu(*gs);
     case .PRACTICE;
       ogl_draw_sample_scene();
     case .ARCADE;
@@ -101,6 +104,47 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Exit") {
     ges.exit = true;
+  }
+  gui_panel_layout_end(*main_menu_gui_panel, *layout);
+
+
+  fps_scale := 0.5;
+  fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
+  defer free(fps_counter.data);
+  fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
+  color : u32 = 0xFFFFFFFF;
+  color = (color << 20);
+  render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
+
+  gbatch_renderer_flush();
+
+}
+//--------------------------------------------------
+//--------------------------------------------------
+// OPTIONS_MENU
+//--------------------------------------------------
+//--------------------------------------------------
+options_menu_gui_panel: guiPanel;
+do_options_menu :: (state : *GameState) {
+  using state;
+  wh_ratio : float = 2.0;
+  num_categories := 3;
+  panel_w : float = window.dim.x / 2.0;
+  panel_h : float = panel_w / (num_categories * wh_ratio);
+  main_menu_gui_panel.x0 = window.dim.x/2.0 - main_menu_gui_panel.w/2.0;
+  main_menu_gui_panel.y0 = window.dim.y/2.0 - main_menu_gui_panel.h/2.0;
+  layout : guiPanelLayout = .{width = panel_w, row_height = panel_h};
+  gui_panel_layout_begin(*main_menu_gui_panel, *layout);
+  gui_panel_layout_add_title(*layout, "Options");
+  gui_panel_layout_row(*layout, 1);
+  gui_panel_layout_add_slider(*layout, "Volume", *game_volume, 0, 100);
+  gui_panel_layout_row(*layout, 2);
+  gui_panel_layout_add_checkbox(*layout, "Anims", *animations_on);
+  gui_panel_layout_add_checkbox(*layout, "Effects", *effects_on);
+  gui_panel_layout_end(*main_menu_gui_panel, *layout);
+  gui_panel_layout_row(*layout, 1);
+  if gui_panel_layout_add_button(*layout, "Back") {
+    game_set_scene(state, 1.0, .MAIN_MENU);
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
 
