@@ -113,6 +113,7 @@ gfont_atlas_generate :: () -> gFontAtlas {
 }
 
 gfont_atlas_get_text_scale_to_fit_region :: (atlas : *gFontAtlas, s : string, region : gRect) -> float {
+    using atlas;
     f_w,f_h : float = gfont_atlas_get_dim_for_string(atlas,s,1.0);
     ratio_w := (region.w / f_w);
     ratio_h := (region.h / f_h);
@@ -129,15 +130,18 @@ gfont_atlas_get_text_scale_to_fit_region :: (atlas : *gFontAtlas, s : string, re
 // }
 
 gfont_atlas_deinit :: (atlas : *gFontAtlas) {
+    using atlas;
     free(atlas.bitmap);
 }
 
 gfont_atlas_get_glyph_for_character :: (atlas : *gFontAtlas, c : u8) -> gFontGlyph {
-    return atlas.glyphs[xx c];
+    using atlas;
+    return glyphs[xx c];
 }
 
 // Returns the rect produced by a string
 gfont_atlas_get_dim_for_string :: (atlas : *gFontAtlas,s : string, scale : float = 1.0) -> width : float, height : float {
+    using atlas;
     if s.count == 0 then return 0,0;
     advance_x : float = 0;
     max_h_above_baseline : float = 0;

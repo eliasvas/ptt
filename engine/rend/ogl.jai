@@ -443,7 +443,6 @@ ogl_draw_sample_scene :: () {
     ogl_clear_all();
     gcam_update(*camera,xx ges.dt);
     pos : gVec3 = .{xx sin(2*seconds_since_init()),0,-10};
-
     aspect := 800.0 / 600.0; 
     model_mat := make_translation_matrix(pos);
     view_mat := gcam_make_lookat_matrix(*camera);

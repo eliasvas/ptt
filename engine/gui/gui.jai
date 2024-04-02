@@ -284,33 +284,38 @@ guiPanelLayout :: struct {
     at_y : float;
 };
 gui_panel_layout_row :: (layout : *guiPanelLayout, column_count : int = 1) {
-    layout.at_y += layout.row_height;
-    layout.at_x = layout.x0;
-    layout.col_w = layout.width / column_count;
+    using layout;
+    at_y += row_height;
+    at_x = x0;
+    col_w = width / column_count;
 }
 
 gui_panel_layout_add_checkbox :: (layout : *guiPanelLayout, label : string, val : *bool) -> bool {
-    height := layout.at_y - layout.row_height;
-    on := gui_checkbox(label, .{layout.at_x,height, layout.col_w,layout.row_height}, val);
-    layout.at_x += layout.col_w;
+    using layout;
+    height := at_y - row_height;
+    on := gui_checkbox(label, .{at_x,height, col_w,row_height}, val);
+    at_x += col_w;
     return on;
 }
 gui_panel_layout_add_slider :: (layout : *guiPanelLayout, label : string, val : *int, minv : int, maxv : int) -> bool {
-    height := layout.at_y - layout.row_height;
-    pressed := gui_slider(label, .{layout.at_x,height, layout.col_w,layout.row_height},val, minv, maxv);
-    layout.at_x += layout.col_w;
+    using layout;
+    height := at_y - row_height;
+    pressed := gui_slider(label, .{at_x,height, col_w,row_height},val, minv, maxv);
+    at_x += col_w;
     return pressed;
 }
 gui_panel_layout_add_button :: (layout : *guiPanelLayout, label : string) -> bool {
-    height := layout.at_y - layout.row_height;
-    pressed := gui_button(label, .{layout.at_x,height, layout.col_w,layout.row_height});
-    layout.at_x += layout.col_w;
+    using layout;
+    height := at_y - row_height;
+    pressed := gui_button(label, .{at_x,height, col_w,row_height});
+    at_x += col_w;
     return pressed;
 }
 gui_panel_layout_add_title :: (layout : *guiPanelLayout, label : string) {
+    using layout;
     gui_panel_layout_row(layout, 1);
-    height := layout.at_y - layout.row_height;
-    gui_static_label(label, .{layout.at_x,height, layout.col_w,layout.row_height});
+    height := at_y - row_height;
+    gui_static_label(label, .{at_x,height, col_w, row_height});
 }
 
 guiPanel :: struct {
@@ -322,16 +327,12 @@ guiPanel :: struct {
 }
 
 gui_panel_layout_begin :: (panel : *guiPanel, layout : *guiPanelLayout) {
-    layout.x0 = panel.x0 + gui.style.panel_pad_x / 2;
-    layout.y0 = panel.y0 + gui.style.panel_pad_y / 2;
+    using panel;
+    layout.x0 = x0 + gui.style.panel_pad_x / 2;
+    layout.y0 = y0 + gui.style.panel_pad_y / 2;
     layout.at_x = layout.x0;
     layout.at_y = layout.y0;
-    render_basic_box(panel.x0, panel.y0, panel.w+ gui.style.panel_pad_x,panel.h+ gui.style.panel_pad_y/2, gui.style.default_panel_background_color);
-
-    //if gim_mouse_inside_region(panel.x0, panel.y0, panel.x0 + panel.w, panel.y0 + panel.h) {
-        //if mouse pressed where label is
-        //take mouse delta and add to current panel pos
-    //}
+    render_basic_box(x0, y0, w + gui.style.panel_pad_x, h + gui.style.panel_pad_y/2, gui.style.default_panel_background_color);
 }
 
 gui_panel_layout_end :: (panel : *guiPanel, layout : *guiPanelLayout) {

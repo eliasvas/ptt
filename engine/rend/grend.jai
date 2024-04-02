@@ -182,37 +182,6 @@ gbatch_renderer_2d_init :: () {
     ogl_clear_all();
 }
 
-random_bool : bool = false;
-random_bool2 : bool = true;
-random_bool3 : bool = true;
-random_slider_val : int = 0;
-
-// gbatch_renderer_2d_sample_render :: () {
-//     num_categories := 3;
-//     layout : guiPanelLayout = .{width = 200, row_height = 60};
-//     gui_panel_layout_begin(*main_panel, *layout);
-//     gui_panel_layout_add_title(*layout, "graphics");
-//     gui_panel_layout_row(*layout, 3);
-//     gui_panel_layout_add_checkbox(*layout, "bloom",*random_bool);
-//     gui_panel_layout_add_checkbox(*layout, "negative",*random_bool3);
-//     if gui_panel_layout_add_button(*layout, "x") {
-//         print("x!\n");
-//     }
-//     gui_panel_layout_row(*layout, 2);
-//     gui_panel_layout_add_checkbox(*layout, "emissive", *random_bool2);
-//     gui_panel_layout_add_slider(*layout, "factor",*random_slider_val, 0,255);
-//     gui_panel_layout_end(*main_panel, *layout);
- 
-//     fps_scale := 0.5;
-//     fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
-//     defer free(fps_counter.data);
-//     fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
-//     color : u32 = 0xFFFFFFFF;
-//     color = (color << 20);
-//     render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
-//     gbatch_renderer_flush();
-// }
-
 render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
     gbatch_renderer_bind_texture(grc.white_tex);
     if rounded {
