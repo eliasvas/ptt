@@ -200,4 +200,69 @@ rend_sphere_with_letter :: (c : u8, pos : gVec3) {
   ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
 
   ogl_clear_all();
+  sphere : PKMNTypeSphere;
+}
+
+//--------------------------------------------------
+//--------------------------------------------------
+// POKEMON STUFF 
+//--------------------------------------------------
+//--------------------------------------------------
+PokeType :: enum {
+  NORMAL;
+  FIGHTING;
+  FLYING;
+  POISON;
+  GROUND;
+  ROCK;
+  BUG;
+  GHOST;
+  STEEL;
+  FIRE;
+  WATER;
+  GRASS;
+  ELECTRIC;
+  PSYCHIC;
+  ICE;
+  DRAGON;
+  DARK;
+  FAIRY;
+  COUNT; // i should 'learn' jai at some point
+};
+
+type_chart : [PokeType.COUNT] [PokeType.COUNT] float = .[
+  float.[1,1,1,1,1,0.5,1,0,0.5,1,1,1,1,1,1,1,1,1],
+  float.[2,1,0.5,0.5,1,2,0.5,0,2,1,1,1,1,0.5,2,1,2,0.5],
+  float.[1,2,1,1,1,0.5,2,1,0.5,1,1,2,0.5,1,1,1,1,1],
+  float.[1,1,1,0.5,0.5,0.5,1,0.5,0,1,1,2,1,1,1,1,1,2],
+  float.[1,1,0,2,1,2,0.5,1,2,2,1,0.5,2,1,1,1,1,1],
+  float.[1,0.5,2,1,0.5,1,2,1,0.5,2,1,1,1,1,2,1,1,1],
+  float.[1,0.5,0.5,0.5,1,1,1,0.5,0.5,0.5,1,2,1,2,1,1,2,0.5],
+  float.[0,1,1,1,1,1,1,2,1,1,1,1,1,2,1,1,0.5,1],
+  float.[1,1,1,1,1,2,1,1,0.5,0.5,0.5,1,0.5,1,2,1,1,2],
+  float.[1,1,1,1,1,0.5,2,1,2,0.5,0.5,2,1,1,2,0.5,1,1],
+  float.[1,1,1,1,2,2,1,1,1,2,0.5,0.5,1,1,1,0.5,1,1],
+  float.[1,1,0.5,0.5,2,2,0.5,1,0.5,0.5,2,0.5,1,1,1,0.5,1,1],
+  float.[1,1,2,1,0,1,1,1,1,1,2,0.5,0.5,1,1,0.5,1,1],
+  float.[1,2,1,2,1,1,1,1,0.5,1,1,1,1,0.5,1,1,0,1],
+  float.[1,1,2,1,2,1,1,1,0.5,0.5,0.5,2,1,1,0.5,2,1,1],
+  float.[1,1,1,1,1,1,1,1,0.5,1,1,1,1,1,1,2,1,0],
+  float.[1,0.5,1,1,1,1,1,2,1,1,1,1,1,2,1,1,0.5,0.5],
+  float.[1,2,1,0.5,1,1,1,1,0.5,0.5,1,1,1,1,1,2,2,1],
+];
+
+type_test :: () {
+  assert(type_chart[PokeType.FIRE][PokeType.WATER] == 0.5);
+  assert(type_chart[PokeType.WATER][PokeType.FIRE] == 2.0);
+  assert(type_chart[PokeType.WATER][PokeType.ELECTRIC] == 1.0);
+  assert(type_chart[PokeType.ELECTRIC][PokeType.WATER] == 2.0);
+  assert(type_chart[PokeType.DRAGON][PokeType.FAIRY] == 0.0);
+}
+#run type_test();
+
+PKMNTypeSphere :: struct {
+  type : PokeType;
+  pos : gVec3;
+  radius : float; // its pretty much scale
+  //collider : col;
 }
