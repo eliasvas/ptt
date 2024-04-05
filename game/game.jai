@@ -47,9 +47,11 @@ game_update :: (state : *GameState) {
     case .OPTIONS_MENU;
       do_options_menu(*gs);
     case .PRACTICE;
-      ogl_draw_sample_scene();
+      //ogl_draw_sample_scene();
+      rend_sphere_with_letter(71, .{0,0,-5});
     case .ARCADE;
-      ogl_draw_sample_scene();
+      rend_sphere_with_letter(71, .{0,0,-5});
+      //ogl_draw_sample_scene();
     case;
     assert(false);
   }
@@ -159,4 +161,43 @@ do_options_menu :: (state : *GameState) {
 
   gbatch_renderer_flush();
 
+}
+
+//--------------------------------------------------
+//--------------------------------------------------
+// GAME 
+//--------------------------------------------------
+//--------------------------------------------------
+rend_sphere_with_letter :: (c : u8, pos : gVec3) {
+  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas,xx c);
+  ogl_clear_all();
+  gcam_update(*camera,xx ges.dt);
+  aspect := 800.0 / 600.0; 
+  //model_mat := make_translation_matrix(pos);
+  model_mat := make_rotation_matrix(PI/2, .{0.0,1.0,0.0});
+  //model_mat := make_rotation_matrix(PI, .{1.0,0.0,0.0});
+  view_mat := gcam_make_lookat_matrix(*camera);
+  proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
+
+  ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
+  ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
+  ogl_bind_shader_object(*ogl_ctx.sp3D);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
+  tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)glyph.tc_y / grc.default_atlas.size_y};
+  tc_end := tc_start;
+  tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
+  col : gVec4 = .{1.0,0.0,0.0,0.0};
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "ball_color", oglShaderDataType.VEC4, xx *col);
+
+  //grc: gRendContext;
+  //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
+  ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
+  ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
+  ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
+
+  ogl_clear_all();
 }

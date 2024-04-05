@@ -454,12 +454,16 @@ ogl_draw_sample_scene :: () {
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
     ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-    ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
+
+    //grc: gRendContext;
+    //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
+    ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
     ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
     ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
 
     ogl_clear_all();
 }
+
 
 
 //----------------------------------------------------------------------------
@@ -494,18 +498,23 @@ fragment_shader_3D_source :: #string END
 out vec4 FragColor;
 in vec2 tc;
 in vec3 world_pos;
-uniform float col_mod;
+uniform vec2 tc_start;
+uniform vec2 tc_end;
+uniform vec4 ball_color;
 uniform sampler2D tex;
 
 in vec4 col;
 
 void main()
 {
-    FragColor = texture(tex, tc) * vec4(1,1,1,1);
-    //FragColor.y = world_pos.y; 
-    //FragColor.x = 0;
-    //FragColor.y = 0;
-    //FragColor.x = world_pos.x; 
-    //FragColor.z = 0;
+    // vec2 new_tc = vec2(tc.x, tc.y) * 3 - 1;
+    // vec2 neww_tc = tc_start + vec2(new_tc.x, new_tc.y) * (tc_end - tc_start);
+
+    // vec3 col = texture(tex, neww_tc).rgb * vec3(1,1,1);
+    // if (new_tc.x > 1.0) col = vec3(0,0,0);
+    // if (new_tc.x < 0.0) col = vec3(0,0,0);
+    // col *= -1.0;
+    // col +=1.0;
+    FragColor = vec4(tc.x, tc.y,0.0,1.0) *ball_color;
 }
 END

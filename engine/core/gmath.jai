@@ -203,6 +203,30 @@ make_lookat_matrix :: (eye: gVec3, center : gVec3, dummy_up : gVec3) -> gMat4 {
   return make_lookat_matrix(F,R,U, eye);
 }
 
+make_rotation_matrix :: (angle : float, axiss : gVec3) -> gMat4 {
+  res := GM4_IDENTITY;
+
+  axis := gvec3_norm(axiss);
+
+  sin_theta : float = sin(angle);
+  cos_theta : float = cos(angle);
+  cos_val : float = 1.0 - cos_theta;
+
+  res.col[0][0] = (axis.x * axis.z * cos_val) + cos_theta;
+  res.col[0][1] = (axis.x * axis.y * cos_val) + (axis.z * sin_theta);
+  res.col[0][2] = (axis.x * axis.z * cos_val) - (axis.y * sin_theta);
+
+  res.col[1][0] = (axis.y * axis.x * cos_val) - (axis.z * sin_theta);
+  res.col[1][1] = (axis.y * axis.y * cos_val) + cos_theta;
+  res.col[1][2] = (axis.y * axis.z * cos_val) + (axis.x * sin_theta);
+
+  res.col[2][0] = (axis.z * axis.x * cos_val) + (axis.y * sin_theta);
+  res.col[2][1] = (axis.z * axis.y * cos_val) - (axis.x * sin_theta);
+  res.col[2][2] = (axis.z * axis.z * cos_val) + cos_theta;
+
+  return res;
+}
+
 gRect :: struct {
   x0,y0,w,h : float;
 }
