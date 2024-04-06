@@ -169,8 +169,9 @@ do_options_menu :: (state : *GameState) {
 //--------------------------------------------------
 //--------------------------------------------------
 rend_sphere_with_letter :: (c : u8, pos : gVec3) {
-  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas,xx c);
   ogl_clear_all();
+  //ogl_image_bind(*ogl_ctx.def_fbo);
+  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas,xx c);
   gcam_update(*camera,xx ges.dt);
   aspect := 800.0 / 600.0; 
   //model_mat := make_translation_matrix(pos);

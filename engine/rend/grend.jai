@@ -46,8 +46,8 @@ grend_init :: (window : *gWin) {
     //white texture initialization
     white_tex := generate_debug_texture(400, 400, 1, 1, 4);
     defer free(white_tex.data);
-    ogl_image_init(*grc.white_tex, white_tex.data, 400, 400, oglImageFormat.RGBA);
-    ogl_image_init(*grc.font_tex, grc.default_atlas.bitmap, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, oglImageFormat.RGBA,true);
+    ogl_image_init(*grc.white_tex, white_tex.data, 400, 400, oglImageFormat.RGBA8U);
+    ogl_image_init(*grc.font_tex, grc.default_atlas.bitmap, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, oglImageFormat.RGBA8U,true);
 
     // // main GUI panel inital position 
     // main_panel.x0 = 600;
@@ -113,7 +113,7 @@ gwin_update :: (win : *gWin) {
     gwin_resize_if_necessary(win);
     dt := ges.dt;
     glViewport(0, 0, xx win.dim.x, xx win.dim.y);
-    glClearColor(0.1, 0.1, 0.1, 1.0);
+    glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 }

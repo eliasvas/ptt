@@ -19,7 +19,6 @@ Because of its OpenGL 3.3 compliance, this is a GREAT compatibility layer
 sphere_verts,sphere_idx := #run generate_sphere(1,40,40,true);
 oglContext :: struct {
     vao : GLuint;
-    def_fbo : GLuint; //the default framebuffer (framebuffer 0?)
 
     //shader_program_3D : GLuint;
     sp3D : oglShaderObject;
@@ -28,6 +27,7 @@ oglContext :: struct {
     sphere_ibo : oglBuf;
 
     debug_tex : oglImage;
+    def_fbo : oglImage;
 
     MAX_TEX_SLOTS :: 8;
     MAX_ATTRIBS   :: 16;
@@ -56,7 +56,9 @@ ogl_init :: () {
     t_h : u32 = 400;
     debug_tex := generate_debug_texture(t_w, t_h, 8, 8, 4);
     defer free(debug_tex.data);
-    ogl_image_init(*ogl_ctx.debug_tex, debug_tex.data, t_w, t_h, oglImageFormat.RGBA);
+    ogl_image_init(*ogl_ctx.debug_tex, debug_tex.data, t_w, t_h, oglImageFormat.RGBA8U);
+    //TODO: should this be resized on higher resolutions???
+    ogl_image_init(*ogl_ctx.def_fbo, null, 800, 600, oglImageFormat.RGBA32F);
 
     ogl_clear_all();
 }
@@ -113,6 +115,7 @@ oglShaderAttrib :: struct {
 }
 
 ogl_clear_all :: () {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -161,39 +164,91 @@ oglImageType :: enum {
 };
 
 oglImageFormat :: enum {
-    RGBA;
+    RGBA8U;
+    RGBA32F;
 }
 oglImage :: struct {
     handle : GLuint;
+    attachments : [4] GLuint; // optional: used only for FBOs
+    width : u32;
+    height: u32;
     format : oglImageFormat;
 }
 
-ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, format : oglImageFormat, is_font : bool = false) -> bool {
-    glGenTextures(1, *img.handle);
-    glBindTexture(GL_TEXTURE_2D, img.handle);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
-    if is_font {
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, xx tex_data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    } else  {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, xx tex_data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    img.format = format;
-    return (img.handle != 0);
+ogl_image_clear:: (img : *oglImage) {
+    using img;
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+ogl_image_bind :: (img : *oglImage) {
+    using img;
+    if (img == null) then glBindFramebuffer(GL_FRAMEBUFFER, 0); else glBindFramebuffer(GL_FRAMEBUFFER, handle);
+}
+//TODO: should a 'type' be introduced, switching on the format is wrong
+ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fmt : oglImageFormat, is_font : bool = false) -> bool {
+    using img;
+    width = tex_w;
+    height = tex_h;
+    format = fmt;
+    if format == {
+        case .RGBA8U; // normal textures
+            glGenTextures(1, *handle);
+            glBindTexture(GL_TEXTURE_2D, handle);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
+            if is_font {
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, xx tex_data);
+                glGenerateMipmap(GL_TEXTURE_2D);
+            } else  {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, xx tex_data);
+                glGenerateMipmap(GL_TEXTURE_2D);
+            }
+        case .RGBA32F; // framebuffers
+            glGenFramebuffers(1, *handle);
+            glBindFramebuffer(GL_FRAMEBUFFER, handle);
+            
+            // - position color buffer
+            glGenTextures(1, *attachments[0]);
+            glBindTexture(GL_TEXTURE_2D, attachments[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tex_w, tex_h, 0, GL_RGBA, GL_FLOAT, null);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, attachments[0], 0);
+            
+            // - normal color buffer
+            glGenTextures(1, *attachments[1]);
+            glBindTexture(GL_TEXTURE_2D, attachments[1]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tex_w, tex_h, 0, GL_RGBA, GL_FLOAT, null);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, attachments[1], 0);
+            
+            // - color + specular color buffer
+            glGenTextures(1, *attachments[2]);
+            glBindTexture(GL_TEXTURE_2D, attachments[2]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tex_w, tex_h, 0, GL_RGBA, GL_FLOAT, null);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, attachments[2], 0);
+            
+            // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+            attachments_gl : [3] u32 = u32.[ GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 ];
+            glDrawBuffers(3, *attachments_gl[0]);
+        case;
+            assert(false);
+        }
+    return (handle != 0);
 }
 
 ogl_bind_image_to_texture_slot :: (img : *oglImage, tex_slot : u32) {
