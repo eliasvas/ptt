@@ -502,37 +502,9 @@ ogl_draw_indexed :: (prim : oglPrimitive, count : u32) {
     glDrawElements(ogl_prim_to_gl_prim(prim), count, GL_UNSIGNED_INT, xx 0);
 }
 
-ogl_draw_sample_scene :: () {
-    ogl_clear_all();
-    gcam_update(*camera,xx ges.dt);
-    pos : gVec3 = .{xx sin(2*seconds_since_init()),0,-10};
-    aspect := 800.0 / 600.0; 
-    model_mat := make_translation_matrix(pos);
-    view_mat := gcam_make_lookat_matrix(*camera);
-    proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
-
-    ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
-    ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
-    ogl_bind_shader_object(*ogl_ctx.sp3D);
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
-    ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-
-    //grc: gRendContext;
-    //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
-    ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
-    ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
-    ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
-
-    ogl_clear_all();
-}
-
-
-
 //----------------------------------------------------------------------------
 // - SHADERS
 //----------------------------------------------------------------------------
- 
 vertex_shader_3D_source :: #string END
 #version 330 core
 layout (location = 0) in vec3 aPos;

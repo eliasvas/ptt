@@ -39,6 +39,7 @@ game_update :: (state : *GameState) {
   using state;
   ges_update();
   gwin_update(*window);
+  gcam_update(*grc.main_cam,xx ges.dt);
 
   if gkey_down(27) then game_set_scene(state, 1.0, .MAIN_MENU);
   if current_scene == {
@@ -118,7 +119,7 @@ do_main_menu :: (state : *GameState) {
   color = (color << 20);
   render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
 
-  gbatch_renderer_flush();
+  gbatch_renderer_flush(*grc.br);
 
 }
 //--------------------------------------------------
@@ -159,7 +160,7 @@ do_options_menu :: (state : *GameState) {
   color = (color << 20);
   render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
 
-  gbatch_renderer_flush();
+  gbatch_renderer_flush(*grc.br);
 
 }
 
@@ -172,7 +173,7 @@ do_options_menu :: (state : *GameState) {
 rend_cube_in_pos :: (pos : gVec3, col : gVec4) {
   ogl_clear_all();
   model_mat := make_translation_matrix(pos);
-  view_mat := gcam_make_lookat_matrix(*camera);
+  view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, 800.0/600.0, 0.001, 50.0);
 
   //ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
@@ -193,12 +194,11 @@ rend_sphere_with_letter :: (c : u8, pos : gVec3) {
   ogl_clear_all();
   //ogl_image_bind(*ogl_ctx.def_fbo);
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas,xx c);
-  gcam_update(*camera,xx ges.dt);
   aspect := 800.0 / 600.0; 
   //model_mat := make_translation_matrix(pos);
   model_mat := make_rotation_matrix(PI/2, .{0.0,1.0,0.0});
   //model_mat := make_rotation_matrix(PI, .{1.0,0.0,0.0});
-  view_mat := gcam_make_lookat_matrix(*camera);
+  view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
 
   ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);

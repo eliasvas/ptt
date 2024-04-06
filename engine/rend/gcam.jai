@@ -19,24 +19,26 @@ gCam :: struct {
 }
 
 gcam_init :: (cam : *gCam, initial_pos : gVec3 = .{0,0,0}) {
-    cam.pos = initial_pos;
-    cam.front = .{0,0,-1};
-    cam.up = .{0,1,0};
+    using cam;
+    pos = initial_pos;
+    front = .{0,0,-1};
+    up = .{0,1,0};
 }
 
 gcam_update :: (cam :*gCam, dt : float = 1.0 / 60.0) {
+    using cam;
     //TODO: augment input system so we can pass enums for keyboard keys not just ASCII
     if gkey_down(119){ //key w
-        cam.pos += camera.front * cam.speed * dt;
+        pos += front * speed * dt;
     }
     if gkey_down(115){ //key s
-        cam.pos -= camera.front * cam.speed * dt;
+        pos -= front * speed * dt;
     }
     if gkey_down(97){ //key a
-        cam.pos -= gvec3_norm(gvec3_cross(camera.front,camera.up)) * cam.speed * dt;
+        pos -= gvec3_norm(gvec3_cross(front,up)) * speed * dt;
     }
     if gkey_down(100){ //key d
-        cam.pos += gvec3_norm(gvec3_cross(camera.front,camera.up)) * cam.speed * dt;
+        pos += gvec3_norm(gvec3_cross(front,up)) * speed * dt;
     }
 
     if gkey_down(xx gInputMouseKey.RMB) {

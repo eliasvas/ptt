@@ -6,25 +6,18 @@
 #import "GL";
 #import "SDL";
 
-//TODO: we need to emulate OpenGL state machine, to be able to discard VAOs and infer glVertexAttribPointers
-//so we can just bind VBO/IBOs and set correct state / have a pipeline, and not mess with UGLY opengl state machine stuff.
-
-
 gRendContext :: struct {
-
     debug_tex : oglImage;
     white_tex : oglImage;
     font_tex: oglImage;
 
     default_atlas : gFontAtlas;
     //+ a command buffer?!
-
     //TODO: This should probably be some kind of UUID, have to think about resource management
     window_ref : *gWin;
+    br : gBatchRenderer2D;
+    main_cam : gCam;
 }
-
-//NOTE: Should this be called render DEVICE instead of Context?
-grc: gRendContext;
 
 //NOTE: YOU must free the data!
 gTextureData :: struct {
@@ -34,27 +27,26 @@ gTextureData :: struct {
 }
 
 
-camera : gCam;
 
+grc: gRendContext;
 grend_init :: (window : *gWin) {
+    using grc;
+    //TODO: Should we abstract the whole SDL part too? Currently its pretty small tbh
     SDL_Init(SDL_INIT_VIDEO);
-    grc.default_atlas = gfont_atlas_generate();
-    grc.window_ref = window;
-    gbatch_renderer_2d_init();
+
+    default_atlas = gfont_atlas_generate();
+    window_ref = window;
+    gbatch_renderer_2d_init(*br);
     ogl_init();
 
     //white texture initialization
-    white_tex := generate_debug_texture(400, 400, 1, 1, 4);
-    defer free(white_tex.data);
-    ogl_image_init(*grc.white_tex, white_tex.data, 400, 400, oglImageFormat.RGBA8U);
-    ogl_image_init(*grc.font_tex, grc.default_atlas.bitmap, xx grc.default_atlas.size_x, xx grc.default_atlas.size_y, oglImageFormat.RGBA8U,true);
-
-    // // main GUI panel inital position 
-    // main_panel.x0 = 600;
-    // main_panel.y0 = 100;
+    white_tex_pixels := generate_debug_texture(400, 400, 1, 1, 4);
+    defer free(white_tex_pixels.data);
+    ogl_image_init(*white_tex, white_tex_pixels.data, 400, 400, oglImageFormat.RGBA8U);
+    ogl_image_init(*font_tex, default_atlas.bitmap, xx default_atlas.size_x, xx default_atlas.size_y, oglImageFormat.RGBA8U, true);
 
     //initialize the main camera
-    gcam_init(*camera);
+    gcam_init(*main_cam);
 }
 
 
@@ -129,14 +121,9 @@ gwin_cleanup :: (win : *gWin){
 //--------2D BATCH RENDERER--------
 //---------------------------------
 
-//TODO: This should become a command buffer inside probably, with binding different textures and drawing
-
 //The concept is as follows: We got a shader that renders colored rects, font and misc. icons.
 //There are QuadInstances, containing all the info to render one of the three, each quad instance has
 //a tex_index, meaning which of the 3 to texture, all other parameters are the same
-
-gr2D : gBatchRenderer2D;
-//main_panel : guiPanel;
 
 gBatchRenderer2D :: struct {
     quads : [..] gQuadInstance;
@@ -161,36 +148,75 @@ gQuadInstance :: struct {
     border_thickness : float;
 }
 
-gbatch_renderer_2d_init :: () {
-    ogl_shader_object_init(*gr2D.sp,vertex_shader_ui_source, fragment_shader_ui_source);
+gbatch_renderer_2d_init :: (br : *gBatchRenderer2D) {
+    using br;
+    ogl_shader_object_init(*sp,vertex_shader_ui_source, fragment_shader_ui_source);
 
-    gr2D.vbo = ogl_make_buffer(.VERTEX, null, 0, 0);
-    ogl_bind_vertex_buffer(*gr2D.vbo);
+    br.vbo = ogl_make_buffer(.VERTEX, null, 0, 0);
+    ogl_bind_vertex_buffer(*vbo);
     
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(0, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(1, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(2, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(3, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(4, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(5, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(6, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(7, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(8, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(9, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness),true));
-    ogl_shader_object_add_attrib(*gr2D.sp, ogl_make_attrib(10, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(0, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p0),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(1, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code p1),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(2, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t0),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(3, oglShaderDataType.VEC2, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code t1),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(4, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col0),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(5, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col1),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(6, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col2),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(7, oglShaderDataType.VEC4, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code col3),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(8, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code corner_radius),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(9, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code edge_softness),true));
+    ogl_shader_object_add_attrib(*sp, ogl_make_attrib(10, oglShaderDataType.FLOAT, size_of(gQuadInstance), xx offset_of(gQuadInstance, #code border_thickness),true));
     
     ogl_clear_all();
 }
 
-render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
-    gbatch_renderer_bind_texture(grc.white_tex);
-    if rounded {
-        gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
-    }else {
-        gbatch_renderer_push_quad(.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
-    }
+
+
+gbatch_renderer_flush :: (br : *gBatchRenderer2D) {
+    using br;
+    ogl_clear_all();
+    ogl_bind_vertex_buffer(*vbo);
+    ogl_update_buffer(*vbo, br.quads.data, cast(u32)quads.count, size_of(gQuadInstance));
+    ogl_bind_shader_object(*sp);
+    ogl_shader_object_set_uniform(*sp,"res",oglShaderDataType.VEC2, xx *grc.window_ref.dim);
+    ogl_shader_set_dynamic_state(oglShaderDynamicState.DEPTH_DISABLED | oglShaderDynamicState.BLENDING);
+
+    ogl_bind_image_to_texture_slot(*last_bound_tex, 0);
+    ogl_shader_object_bind_sampler_to_slot(*sp, "tex", 0);
+
+    ogl_draw_instanced(oglPrimitive.TRIANGLE_STRIP, 0, 4, xx quads.count); 
+    quads.count = 0;
+    ogl_clear_all();
 }
 
+gbatch_renderer_bind_texture :: (br : *gBatchRenderer2D, tex : oglImage) {
+    using br;
+    //TODO: some id system should be done for ALL resources from ogl
+    if (tex.handle != last_bound_tex.handle) {
+        //render with current last_bound_tex to clear the quad stretchy buffer
+        gbatch_renderer_flush(br);
+    }
+    last_bound_tex = tex;
+}
+
+gbatch_renderer_push_quad :: (br : *gBatchRenderer2D, q : gQuadInstance) {
+    using br;
+    //print("Quad pushed: %\n", q);
+    //if tex then gbatch_renderer_bind_texture(tex, win);
+    array_add(*quads, q);
+}
+
+//---------------------------------
+//-----SIMPLE RENDER HELPERS-------
+//---------------------------------
+render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, rounded : bool = true) {
+    gbatch_renderer_bind_texture(*grc.br,grc.white_tex);
+    if rounded {
+        gbatch_renderer_push_quad(*grc.br,.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},3,2,0});
+    }else {
+        gbatch_renderer_push_quad(*grc.br,.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
+    }
+}
 render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float) {
     start := gVec2.{xx pos_x,xx pos_y};
     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
@@ -202,49 +228,17 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
         tallest_size_y = max(tallest_size_y, glyph.bearing_y);
     }
 
-    gbatch_renderer_bind_texture(grc.font_tex);
+    gbatch_renderer_bind_texture(*grc.br, grc.font_tex);
     cur_pos := start;
     for i : 0..s.count-1 {
         glyph := gfont_atlas_get_glyph_for_character(*grc.default_atlas, s[i]);
         cur_pos.y = start.y + (tallest_size_y - glyph.bearing_y) * scale;
         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
     
-        gbatch_renderer_push_quad(.{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},0,0,0});
+        gbatch_renderer_push_quad(*grc.br, .{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},0,0,0});
         cur_pos.x += glyph.advance * scale;
     }
 }
-
-gbatch_renderer_flush :: () {
-    ogl_clear_all();
-    ogl_bind_vertex_buffer(*gr2D.vbo);
-    ogl_update_buffer(*gr2D.vbo, gr2D.quads.data, cast(u32)gr2D.quads.count, size_of(gQuadInstance));
-    ogl_bind_shader_object(*gr2D.sp);
-    ogl_shader_object_set_uniform(*gr2D.sp,"res",oglShaderDataType.VEC2, xx *grc.window_ref.dim);
-    ogl_shader_set_dynamic_state(oglShaderDynamicState.DEPTH_DISABLED | oglShaderDynamicState.BLENDING);
-
-    ogl_bind_image_to_texture_slot(*gr2D.last_bound_tex, 0);
-    ogl_shader_object_bind_sampler_to_slot(*gr2D.sp, "tex", 0);
-
-    ogl_draw_instanced(oglPrimitive.TRIANGLE_STRIP, 0, 4, xx gr2D.quads.count); 
-    gr2D.quads.count = 0;
-    ogl_clear_all();
-}
-
-gbatch_renderer_bind_texture :: (tex : oglImage) {
-    //TODO: some id system should be done for ALL resources from ogl
-    if (tex.handle != gr2D.last_bound_tex.handle) {
-        //render with current last_bound_tex to clear the quad stretchy buffer
-        gbatch_renderer_flush();
-    }
-    gr2D.last_bound_tex = tex;
-}
-
-gbatch_renderer_push_quad :: (q : gQuadInstance) {
-    //print("Quad pushed: %\n", q);
-    //if tex then gbatch_renderer_bind_texture(tex, win);
-    array_add(*gr2D.quads, q);
-}
-
 
 vertex_shader_ui_source :: #string END
 #version 330 core
