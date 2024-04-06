@@ -168,6 +168,27 @@ do_options_menu :: (state : *GameState) {
 // GAME 
 //--------------------------------------------------
 //--------------------------------------------------
+
+rend_cube_in_pos :: (pos : gVec3, col : gVec4) {
+  ogl_clear_all();
+  model_mat := make_translation_matrix(pos);
+  view_mat := gcam_make_lookat_matrix(*camera);
+  proj_mat := make_perspective_matrix(45.0, 800.0/600.0, 0.001, 50.0);
+
+  //ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
+  ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
+  ogl_bind_shader_object(*ogl_ctx.sp3D);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
+  ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
+  ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
+  ogl_draw(oglPrimitive.TRIANGLES, xx 0, xx ogl_ctx.cube_vbo.count);
+  ogl_clear_all();
+}
+
+
 rend_sphere_with_letter :: (c : u8, pos : gVec3) {
   ogl_clear_all();
   //ogl_image_bind(*ogl_ctx.def_fbo);
@@ -192,7 +213,9 @@ rend_sphere_with_letter :: (c : u8, pos : gVec3) {
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
   col : gVec4 = .{1.0,0.0,0.0,0.0};
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "ball_color", oglShaderDataType.VEC4, xx *col);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
+  lp : gVec3 = .{-5,0,3};
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
 
   //grc: gRendContext;
   //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
@@ -201,7 +224,7 @@ rend_sphere_with_letter :: (c : u8, pos : gVec3) {
   ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
 
   ogl_clear_all();
-  sphere : PKMNTypeSphere;
+  rend_cube_in_pos(lp, .{1,1,1,1});
 }
 
 //--------------------------------------------------

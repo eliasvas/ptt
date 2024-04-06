@@ -16,7 +16,9 @@ Main difference with openGL is no global state and NO VAOS!
 Because of its OpenGL 3.3 compliance, this is a GREAT compatibility layer
 */
 
+cube_verts,cube_idx := #run generate_cube();
 sphere_verts,sphere_idx := #run generate_sphere(1,40,40,true);
+
 oglContext :: struct {
     vao : GLuint;
 
@@ -25,6 +27,10 @@ oglContext :: struct {
 
     sphere_vbo : oglBuf;
     sphere_ibo : oglBuf;
+
+    cube_vbo : oglBuf;
+    cube_ibo : oglBuf;
+
 
     debug_tex : oglImage;
     def_fbo : oglImage;
@@ -44,6 +50,8 @@ ogl_init :: () {
 
     ogl_ctx.sphere_ibo = ogl_make_buffer(.INDEX, sphere_idx.data, sphere_idx.count, size_of(u32));
     ogl_ctx.sphere_vbo = ogl_make_buffer(.VERTEX, sphere_verts.data, sphere_verts.count, size_of(gVertex));
+    ogl_ctx.cube_vbo = ogl_make_buffer(.VERTEX, cube_verts.data, cube_verts.count, size_of(gVertex));
+    //ogl_ctx.cube_ibo = ogl_make_buffer(.INDEX, cube_idx.data, cube_idx.count, size_of(u32));
 
     ogl_shader_object_init(*ogl_ctx.sp3D,vertex_shader_3D_source, fragment_shader_3D_source);
 
@@ -483,7 +491,7 @@ ogl_prim_to_gl_prim :: (prim : oglPrimitive) -> GLuint {
 
 
 ogl_draw :: (prim : oglPrimitive, first : u32, count : u32) {
-    glDrawArrays(ogl_prim_to_gl_prim(prim), first, count);
+    glDrawArrays(ogl_prim_to_gl_prim(prim), xx first, xx count);
 }
 
 ogl_draw_instanced :: (prim : oglPrimitive, first : u32, count : u32, instance_count : u32) {
@@ -531,7 +539,6 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
 layout (location = 2) in vec2 aTexCoord;
 
-out vec4 col;
 out vec2 tc;
 out vec3 world_pos;
 out vec3 aNormal;
@@ -560,12 +567,12 @@ in vec3 aNormal;
 in vec3 aFragPos;
 uniform vec2 tc_start;
 uniform vec2 tc_end;
-uniform vec4 ball_color;
+uniform vec4 col;
 uniform sampler2D tex;
 
-in vec4 col;
 vec3 lightColor = vec3(0.8,0.8,0.8);
-vec3 lightPos = vec3(-5,20,3);
+uniform vec3 lightPos;
+//vec3 lightPos = vec3(-5,0,3);
 
 void main()
 {
@@ -585,7 +592,7 @@ void main()
     vec3 lightDir = normalize(lightPos - aFragPos); 
     float diff = max(dot(norm, normalize(lightDir)), 0.0);
     vec3 diffuse = diff * lightColor;
-    vec3 result = (ambient + diffuse) * ball_color.xyz;
+    vec3 result = (ambient + diffuse) * col.xyz;
 
     FragColor = vec4(result, 1.0);
 }
