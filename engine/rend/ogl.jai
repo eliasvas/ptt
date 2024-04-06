@@ -479,6 +479,8 @@ layout (location = 2) in vec2 aTexCoord;
 out vec4 col;
 out vec2 tc;
 out vec3 world_pos;
+out vec3 aNormal;
+out vec3 aFragPos;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -486,8 +488,9 @@ uniform mat4 proj;
 
 void main()
 {
-    col = vec4(aNorm,1.0);
     tc = aTexCoord;
+    aNormal = aNorm;
+    aFragPos = vec3(model* vec4(aPos,1.0));
     //gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
     gl_Position = proj * view * model * vec4(aPos, 1.0);
     world_pos = vec3(model * vec4(aPos, 1.0));
@@ -498,12 +501,16 @@ fragment_shader_3D_source :: #string END
 out vec4 FragColor;
 in vec2 tc;
 in vec3 world_pos;
+in vec3 aNormal;
+in vec3 aFragPos;
 uniform vec2 tc_start;
 uniform vec2 tc_end;
 uniform vec4 ball_color;
 uniform sampler2D tex;
 
 in vec4 col;
+vec3 lightColor = vec3(0.8,0.8,0.8);
+vec3 lightPos = vec3(-5,20,3);
 
 void main()
 {
@@ -515,6 +522,16 @@ void main()
     // if (new_tc.x < 0.0) col = vec3(0,0,0);
     // col *= -1.0;
     // col +=1.0;
-    FragColor = vec4(tc.x, tc.y,0.0,1.0) *ball_color;
+
+    //-PHONG-
+    float ambientStrength = 0.1;
+    vec3 ambient = ambientStrength * lightColor;
+    vec3 norm = normalize(aNormal);
+    vec3 lightDir = normalize(lightPos - aFragPos); 
+    float diff = max(dot(norm, normalize(lightDir)), 0.0);
+    vec3 diffuse = diff * lightColor;
+    vec3 result = (ambient + diffuse) * ball_color.xyz;
+
+    FragColor = vec4(result, 1.0);
 }
 END
