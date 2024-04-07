@@ -4,9 +4,9 @@ This should (💀) become a game at some point. Its still pretty early for detai
 Jai proof-of-concept game made *from scratch*. <br />
 Main goal is to have a tiny (**<10 MB**) game to show. <br />
 ## state
-![](https://progress-bar.dev/20/?title=rendering) <br />
-![](https://progress-bar.dev/45/?title=mathLib) <br />
-![](https://progress-bar.dev/0/?title=actualGame) <br />
+![](https://progress-bar.dev/35/?title=rendering) <br />
+![](https://progress-bar.dev/60/?title=mathLib) <br />
+![](https://progress-bar.dev/10/?title=actualGame) <br />
 ![](https://progress-bar.dev/25/?title=gui) <br />
 ## build + run
 You need to have a Jai compiler, git, git-lfs, SDL2 installed along with an OpenGL 3.3 compatible GPU

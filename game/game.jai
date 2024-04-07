@@ -14,13 +14,16 @@ GameScene :: enum {
   ARCADE;
   PRACTICE;
 }
+
 GameState :: struct {
   current_scene : GameScene = .MAIN_MENU;
   animations_on : bool = true;
   effects_on : bool = false;
   game_volume : int = 80;
   window : gWin;
+  sim_start : float64;
 }
+
 game_init :: (state : *GameState) {
   using state;
   ges_init();
@@ -31,6 +34,7 @@ game_init :: (state : *GameState) {
 }
 game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   using state;
+  sim_start = seconds_since_init();
   //wait trans_sec
   current_scene = scene;
 }
@@ -49,9 +53,9 @@ game_update :: (state : *GameState) {
       do_options_menu(*gs);
     case .PRACTICE;
       //ogl_draw_sample_scene();
-      rend_sphere_with_letter(71, .{0,0,-5});
+      rend_poke_sphere(*sphere1);
     case .ARCADE;
-      rend_sphere_with_letter(71, .{0,0,-5});
+      rend_poke_sphere(*sphere2);
       //ogl_draw_sample_scene();
     case;
     assert(false);
@@ -65,6 +69,9 @@ game_exit :: (state : *GameState) {
 }
 
 gs : GameState;
+
+sphere1 : PKMNTypeSphere;
+sphere2 : PKMNTypeSphere;
 
 main :: () {
   game_init(*gs);
@@ -190,38 +197,43 @@ rend_cube_in_pos :: (pos : gVec3, col : gVec4) {
 }
 
 
-rend_sphere_with_letter :: (c : u8, pos : gVec3) {
+rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_clear_all();
+  c : u8 = 65;
   //ogl_image_bind(*ogl_ctx.def_fbo);
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas,xx c);
   aspect := 800.0 / 600.0; 
   //model_mat := make_translation_matrix(pos);
-  model_mat := make_rotation_matrix(PI/2, .{0.0,1.0,0.0});
+  //model_mat := make_translation_matrix(.{});
+  model_mat := gmat4_mul(make_rotation_matrix( cast(float)(seconds_since_init() - gs.sim_start) * (PI/2), .{0.0,0.0,1.0}), gmat4_mul(make_translation_matrix(.{3,0,0}),make_rotation_matrix( cast(float)(seconds_since_init() - gs.sim_start) * (PI/2), .{0.0,0.0,-1.0})));
+  //model_mat.col[3][0] = 2;
   //model_mat := make_rotation_matrix(PI, .{1.0,0.0,0.0});
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
 
-  ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
-  ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
+  //ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
+  //ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
+  ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
   ogl_bind_shader_object(*ogl_ctx.sp3D);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-  tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)glyph.tc_y / grc.default_atlas.size_y};
+  tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
   tc_end := tc_start;
   tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
-  col : gVec4 = .{1.0,0.0,0.0,0.0};
+  col : gVec4 = .{type_colors[sphere.type].x,type_colors[sphere.type].y,type_colors[sphere.type].z,1.0};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
-  lp : gVec3 = .{-5,0,3};
+  lp : gVec3 = .{-5,5,3};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
 
   //grc: gRendContext;
   //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
   ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
   ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
-  ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
+  //ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
+  ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
 
   ogl_clear_all();
   rend_cube_in_pos(lp, .{1,1,1,1});
@@ -273,6 +285,26 @@ type_chart : [PokeType.COUNT] [PokeType.COUNT] float = .[
   float.[1,1,1,1,1,1,1,1,0.5,1,1,1,1,1,1,2,1,0],
   float.[1,0.5,1,1,1,1,1,2,1,1,1,1,1,2,1,1,0.5,0.5],
   float.[1,2,1,0.5,1,1,1,1,0.5,0.5,1,1,1,1,1,2,2,1],
+];
+type_colors : [PokeType.COUNT] gVec3 = .[
+  gVec3.{0.65,0.65,0.47},
+  gVec3.{0.76,0.18,0.15},
+  gVec3.{0.66,0.56,0.95},
+  gVec3.{0.63,0.24,0.63},
+  gVec3.{0.88,0.74,0.39},
+  gVec3.{0.71,0.63,0.21},
+  gVec3.{0.65,0.72,0.10},
+  gVec3.{0.45,0.34,0.59},
+  gVec3.{0.71,0.71,0.80},
+  gVec3.{0.93,0.50,0.18},
+  gVec3.{0.38,0.56,0.94},
+  gVec3.{0.47,0.78,0.29},
+  gVec3.{0.96,0.81,0.17},
+  gVec3.{0.97,0.33,0.52},
+  gVec3.{0.58,0.85,0.83},
+  gVec3.{0.43,0.20,0.98},
+  gVec3.{0.43,0.34,0.27},
+  gVec3.{0.83,0.52,0.67}
 ];
 
 type_test :: () {

@@ -548,23 +548,24 @@ uniform vec3 lightPos;
 
 void main()
 {
-    // vec2 new_tc = vec2(tc.x, tc.y) * 3 - 1;
-    // vec2 neww_tc = tc_start + vec2(new_tc.x, new_tc.y) * (tc_end - tc_start);
+    //vec2 new_tc = vec2(tc.x, tc.y) * 3 - 1;
+    vec2 neww_tc = tc_start + tc * (tc_end - tc_start);
 
-    // vec3 col = texture(tex, neww_tc).rgb * vec3(1,1,1);
+    vec3 col_tex = texture(tex, neww_tc).rgb * vec3(1,1,1);
     // if (new_tc.x > 1.0) col = vec3(0,0,0);
     // if (new_tc.x < 0.0) col = vec3(0,0,0);
     // col *= -1.0;
     // col +=1.0;
+    col_tex = 1.0 - col_tex;
 
     //-PHONG-
-    float ambientStrength = 0.1;
+    float ambientStrength = 0.2;
     vec3 ambient = ambientStrength * lightColor;
     vec3 norm = normalize(aNormal);
     vec3 lightDir = normalize(lightPos - aFragPos); 
     float diff = max(dot(norm, normalize(lightDir)), 0.0);
     vec3 diffuse = diff * lightColor;
-    vec3 result = (ambient + diffuse) * col.xyz;
+    vec3 result = (ambient + diffuse) * col.xyz * col_tex.xyz;
 
     FragColor = vec4(result, 1.0);
 }

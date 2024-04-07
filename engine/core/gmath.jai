@@ -94,6 +94,32 @@ GM4_IDENTITY :: gMat4.{arr = .[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]};
 
 sample : gMat4;
 
+gmath_lin_comb :: (l : gVec4, r : gMat4) -> gVec4 {
+  res : gVec4;
+
+  res.x = l[0] * r.col[0].x;
+  res.y = l[0] * r.col[0].y;
+  res.z = l[0] * r.col[0].z;
+  res.w = l[0] * r.col[0].w;
+
+  res.x += l[1] * r.col[1].x;
+  res.y += l[1] * r.col[1].y;
+  res.z += l[1] * r.col[1].z;
+  res.w += l[1] * r.col[1].w;
+
+  res.x += l[2] * r.col[2].x;
+  res.y += l[2] * r.col[2].y;
+  res.z += l[2] * r.col[2].z;
+  res.w += l[2] * r.col[2].w;
+
+  res.x += l[3] * r.col[3].x;
+  res.y += l[3] * r.col[3].y;
+  res.z += l[3] * r.col[3].z;
+  res.w += l[3] * r.col[3].w;
+
+  return res;
+}
+
 
 make_translation_matrix :: (pos : gVec3) -> gMat4 {
   mat := GM4_IDENTITY;
@@ -128,12 +154,6 @@ print_mat :: (mat : gMat4) {
     print("|\n");
   }
   print("--------\n");
-}
-
-make_scale_matrix :: (axis : gVec3, angle : float) ->gMat4 {
-  mat := GM4_IDENTITY;
-  //TBD
-  return mat;
 }
 
 make_scale_matrix :: (scale : gVec3) -> gMat4 {
@@ -224,6 +244,39 @@ make_rotation_matrix :: (angle : float, axiss : gVec3) -> gMat4 {
   res.col[2][1] = (axis.z * axis.y * cos_val) - (axis.x * sin_theta);
   res.col[2][2] = (axis.z * axis.z * cos_val) + cos_theta;
 
+  return res;
+}
+
+gmat4_inv :: (mat : gMat4) -> gMat4 {
+  c01 : gVec3 = gvec3_cross(.{mat.col[0][0], mat.col[0][1],mat.col[0][2]}, .{mat.col[1][0], mat.col[1][1],mat.col[1][2]});
+  c23 : gVec3 = gvec3_cross(.{mat.col[2][0], mat.col[2][1],mat.col[2][2]}, .{mat.col[3][0], mat.col[3][1],mat.col[3][2]});
+  b10 : gVec3 = gVec3.{mat.col[0].x,mat.col[0].y, mat.col[0].z} * mat.col[1].w - gVec3.{mat.col[1].x,mat.col[1].y, mat.col[1].z} * mat.col[0].w;
+  b32 : gVec3 = gVec3.{mat.col[2].x,mat.col[2].y, mat.col[2].z} * mat.col[3].w - gVec3.{mat.col[3].x,mat.col[3].y, mat.col[3].z} * mat.col[2].w;
+
+  invDet : float = 1.0 / (gvec3_dot(c01, b32)+gvec3_dot(c23,b10));
+  c01 *= invDet;
+  c23 *= invDet;
+  b10 *= invDet;
+  b32 *= invDet;
+
+  result : gMat4;
+  comp : gVec3 = gvec3_cross(.{mat.col[1].x,mat.col[1].y, mat.col[1].z}, b32) + c23 * mat.col[1].w;
+  result.col[0] = gVec4.{comp.x, comp.y,comp.z, -gvec3_dot(.{mat.col[1].x,mat.col[1].y, mat.col[1].z}, c23)};
+  comp = gvec3_cross(b32, .{mat.col[0].x,mat.col[0].y, mat.col[0].z}) - c23 * mat.col[0].w;
+  result.col[1] = gVec4.{comp.x, comp.y,comp.z, +gvec3_dot(.{mat.col[0].x,mat.col[0].y, mat.col[0].z}, c23)};
+  comp = gvec3_cross(.{mat.col[3].x,mat.col[3].y, mat.col[3].z}, b10) + c01 * mat.col[3].w;
+  result.col[2] = gVec4.{comp.x, comp.y,comp.z, -gvec3_dot(.{mat.col[3].x,mat.col[3].y, mat.col[3].z}, c01)};
+  comp = gvec3_cross(b10, .{mat.col[2].x,mat.col[2].y, mat.col[2].z}) - c01 * mat.col[2].w;
+  result.col[3] = gVec4.{comp.x, comp.y,comp.z, +gvec3_dot(.{mat.col[2].x,mat.col[2].y, mat.col[2].z}, c01)};
+  return make_transpose_matrix(result);
+}
+
+gmat4_mul :: (l : gMat4, r : gMat4) ->gMat4 {
+  res : gMat4;
+  res.col[0] = gmath_lin_comb(r.col[0],l);
+  res.col[1] = gmath_lin_comb(r.col[1],l);
+  res.col[2] = gmath_lin_comb(r.col[2],l);
+  res.col[3] = gmath_lin_comb(r.col[3],l);
   return res;
 }
 
