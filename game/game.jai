@@ -36,7 +36,7 @@ game_init :: (state : *GameState) {
 game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   using state;
   sim_start = seconds_since_init();
-  grc.main_cam.pos = .{0,0,10};
+  gcam_init(*grc.main_cam, .{0,0,10});
   sphere1.direction = 1.0;
   sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
   sphere2.direction = -1.0;

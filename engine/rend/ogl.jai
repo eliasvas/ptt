@@ -559,7 +559,7 @@ void main()
     col_tex = 1.0 - col_tex;
 
     //-PHONG-
-    float ambientStrength = 0.2;
+    float ambientStrength = 0.9;
     vec3 ambient = ambientStrength * lightColor;
     vec3 norm = normalize(aNormal);
     vec3 lightDir = normalize(lightPos - aFragPos); 
