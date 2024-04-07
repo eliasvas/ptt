@@ -1,4 +1,5 @@
 #import "Basic";
+#import "Random";
 #import "Input";
 #import "System";
 #import "Math";
@@ -35,6 +36,11 @@ game_init :: (state : *GameState) {
 game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   using state;
   sim_start = seconds_since_init();
+  grc.main_cam.pos = .{0,0,10};
+  sphere1.direction = 1.0;
+  sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
+  sphere2.direction = -1.0;
+  sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
   //wait trans_sec
   current_scene = scene;
 }
@@ -52,13 +58,13 @@ game_update :: (state : *GameState) {
     case .OPTIONS_MENU;
       do_options_menu(*gs);
     case .PRACTICE;
-      //ogl_draw_sample_scene();
       rend_poke_sphere(*sphere1);
-    case .ARCADE;
       rend_poke_sphere(*sphere2);
-      //ogl_draw_sample_scene();
+    case .ARCADE;
+      rend_poke_sphere(*sphere1);
+      rend_poke_sphere(*sphere2);   
     case;
-    assert(false);
+      assert(false);
   }
 
 }
@@ -199,15 +205,11 @@ rend_cube_in_pos :: (pos : gVec3, col : gVec4) {
 
 rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_clear_all();
-  c : u8 = 65;
   //ogl_image_bind(*ogl_ctx.def_fbo);
-  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas,xx c);
+  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.type]);
   aspect := 800.0 / 600.0; 
-  //model_mat := make_translation_matrix(pos);
-  //model_mat := make_translation_matrix(.{});
-  model_mat := gmat4_mul(make_rotation_matrix( cast(float)(seconds_since_init() - gs.sim_start) * (PI/2), .{0.0,0.0,1.0}), gmat4_mul(make_translation_matrix(.{3,0,0}),make_rotation_matrix( cast(float)(seconds_since_init() - gs.sim_start) * (PI/2), .{0.0,0.0,-1.0})));
-  //model_mat.col[3][0] = 2;
-  //model_mat := make_rotation_matrix(PI, .{1.0,0.0,0.0});
+  sphere_angle := (PI/2) + cast(float)(min(seconds_since_init() - gs.sim_start,1.0)) * (PI/2);
+  model_mat := gmat4_mul(make_rotation_matrix( sphere_angle , .{0.0,0.0,1.0}) , gmat4_mul(make_translation_matrix(.{sphere.direction * 4,0,0}),make_rotation_matrix( sphere_angle, .{0.0,0.0,-1.0})));
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
 
@@ -236,7 +238,7 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
 
   ogl_clear_all();
-  rend_cube_in_pos(lp, .{1,1,1,1});
+  //rend_cube_in_pos(lp, .{1,1,1,1});
 }
 
 //--------------------------------------------------
@@ -265,6 +267,8 @@ PokeType :: enum {
   FAIRY;
   COUNT; // i should 'learn' jai at some point
 };
+
+type_initials : [PokeType.COUNT] u8= .[ cast(u8)#char "n", cast(u8)#char "f", cast(u8)#char "f", cast(u8)#char "p", cast(u8)#char "g", cast(u8)#char "r", cast(u8)#char "b", cast(u8)#char "g", cast(u8)#char "s", cast(u8)#char "f", cast(u8)#char "w", cast(u8)#char "g", cast(u8)#char "e", cast(u8)#char "p", cast(u8)#char "i", cast(u8)#char "d", cast(u8)#char "d", cast(u8)#char "f" ];
 
 type_chart : [PokeType.COUNT] [PokeType.COUNT] float = .[
   float.[1,1,1,1,1,0.5,1,0,0.5,1,1,1,1,1,1,1,1,1],
@@ -318,7 +322,8 @@ type_test :: () {
 
 PKMNTypeSphere :: struct {
   type : PokeType;
-  pos : gVec3;
+  //pos : gVec3;
   radius : float; // its pretty much scale
+  direction : float;
   //collider : col;
 }
