@@ -1,8 +1,8 @@
 #import "freetype-2.12.1";
+#import "System";
+#import "File";
 
-//TODO: The font should be baked in the .exe
-//TODO: SDF? (we should make a new shader just for font tho?), also i think freetype has no support in .12
-//TODO: A module that will search all directories for the atlas' name file (Asset system pretty much?)
+font_data := #run read_entire_file("assets/fonts/Roboto/Roboto-Medium.ttf");
 
 //This is a glyph WITH its bitmap!
 gFontGlyphLoose :: struct {
@@ -13,7 +13,7 @@ gFontGlyphLoose :: struct {
     bitmap : *u8; //one byte per pixel (opacity)
 };
 
-freetype_create_loose_glyphs :: (font_filepath : string = "assets/fonts/Roboto/Roboto-Medium.ttf") -> [] gFontGlyphLoose {
+freetype_create_loose_glyphs :: () -> [] gFontGlyphLoose {
     ft_lib : FT_Library;
     face : FT_Face;
     //defer FT_Done_Face(face); //FIXME: There is a memory leak here? why cant we 'Done' the face tho?
@@ -24,11 +24,14 @@ freetype_create_loose_glyphs :: (font_filepath : string = "assets/fonts/Roboto/R
     if error {
         print("FT error: %", error);
     }
-    //FIXME: This is WRONGGGGGGGG, we are we adding a path like this HUH
-    ttf_name := font_filepath;
-    error = FT_New_Face(ft_lib, ttf_name.data, 0, *face);
+
+    //ttf_name := font_filepath;
+    //error = FT_New_Face(ft_lib, ttf_name.data, 0, *face); <--this is how to load a ttf from disk, we load it from memory
+
+    error = FT_New_Memory_Face(ft_lib, font_data.data,xx font_data.count, 0, *face);
+
     if error {
-        print("error loading TTF [%] : %", ttf_name, error);
+        print("error loading TTF");
     }
 
     FT_Set_Pixel_Sizes(face, 0, 64);

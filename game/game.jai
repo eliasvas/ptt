@@ -8,6 +8,10 @@
 //SHITTY GAME IDEA to test the engine works as expected:
 //We can make a Pokemon Type Trainer App. There will be 2-4 PBR type balls and the player must choose the ones that match
 
+//PRIMARY feedback loop should be on-screen effects, like red fade for wrong and green fade for success + sounds?
+//also gameplay transition should be texture interpolation of previous and next type and to go to starting pos and restart simulation
+//also implement some form of stylized rendering, even if its just a post-proc effect, blin-phong is boring as SHIT
+//These + a simple deferred renderer that will render the type spheres with a pre-loaded texture should be enough
 
 GameScene :: enum {
   MAIN_MENU;
@@ -23,6 +27,7 @@ GameState :: struct {
   game_volume : int = 80;
   window : gWin;
   sim_start : float64;
+  current_choice : s32 = 1;
 }
 
 game_init :: (state : *GameState) {
@@ -60,9 +65,17 @@ game_update :: (state : *GameState) {
     case .PRACTICE;
       rend_poke_sphere(*sphere1);
       rend_poke_sphere(*sphere2);
+      if gkey_pressed(119)current_choice += 1;
+      if gkey_pressed(115)current_choice -= 1;
+      current_choice = xx max(0,min(2,current_choice));
+      rend_cube_in_pos(.{}, .{1,1,1,1},xx( #char "0" + current_choice));
     case .ARCADE;
       rend_poke_sphere(*sphere1);
       rend_poke_sphere(*sphere2);   
+      if gkey_pressed(119)current_choice += 1;
+      if gkey_pressed(115)current_choice -= 1;
+      current_choice = xx max(0,min(2,current_choice));
+      rend_cube_in_pos(.{}, .{1,1,1,1},xx( #char "0" + current_choice));
     case;
       assert(false);
   }
@@ -183,22 +196,30 @@ do_options_menu :: (state : *GameState) {
 //--------------------------------------------------
 //--------------------------------------------------
 
-rend_cube_in_pos :: (pos : gVec3, col : gVec4) {
+rend_cube_in_pos :: (pos : gVec3, col : gVec4, c : u8) {
   ogl_clear_all();
   model_mat := make_translation_matrix(pos);
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, 800.0/600.0, 0.001, 50.0);
+  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, c);
 
-  //ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
   ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
   ogl_bind_shader_object(*ogl_ctx.sp3D);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
+  tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
+  tc_end := tc_start;
+  tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
+  lp : gVec3 = .{-5,5,3};
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
   ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
   ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
-  ogl_draw(oglPrimitive.TRIANGLES, xx 0, xx ogl_ctx.cube_vbo.count);
+  ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
+
   ogl_clear_all();
 }
 
