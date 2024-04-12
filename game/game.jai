@@ -28,7 +28,7 @@ GameState :: struct {
   window : gWin;
   sim_start : float64;
   current_choice : s32 = 1;
-  transition_time : float; //time to transition from each gameplay scene (rotation)
+  transition_speed : float = 4.0; //time to transition from each gameplay scene (rotation)
 }
 
 game_init :: (state : *GameState) {
@@ -238,7 +238,7 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   //ogl_image_bind(*ogl_ctx.def_fbo);
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.type]);
   aspect := 800.0 / 600.0; 
-  sphere_angle := (PI/2) + cast(float)(min(seconds_since_init() - gs.sim_start,1.0)) * (PI/2);
+  sphere_angle := (PI) + cast(float)(min(gs.transition_speed*(seconds_since_init() - gs.sim_start),1.0)) * (PI);
   model_mat := gmat4_mul(make_rotation_matrix( sphere_angle , .{0.0,0.0,1.0}) , gmat4_mul(make_translation_matrix(.{sphere.direction * 4,0,0}),make_rotation_matrix( sphere_angle, .{0.0,0.0,-1.0})));
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
