@@ -3,7 +3,6 @@
 
 //based on this: https://floooh.github.io/2020/02/17/sokol-gfx-backend-tour-gl.html
 
-//TODO: remove openGL from UI code, and make it use dis
 //TODO: right now we don't really handle global state, we SHOULD
 //TODO: all 'objects' should have same interface e.g init/create/make delete/cleanup/dealloc JUST CHOOSE ONE
 //TODO: all USER facing calls e.g bind_vertex_buffer should at least have a pointer to the oglContext for state-keeping 

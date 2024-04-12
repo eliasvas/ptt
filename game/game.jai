@@ -28,6 +28,7 @@ GameState :: struct {
   window : gWin;
   sim_start : float64;
   current_choice : s32 = 1;
+  transition_time : float; //time to transition from each gameplay scene (rotation)
 }
 
 game_init :: (state : *GameState) {
@@ -46,6 +47,7 @@ game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
   sphere2.direction = -1.0;
   sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
+  current_choice = 0;
   //wait trans_sec
   current_scene = scene;
 }
@@ -63,19 +65,14 @@ game_update :: (state : *GameState) {
     case .OPTIONS_MENU;
       do_options_menu(*gs);
     case .PRACTICE;
+      #through;
+    case .ARCADE;
       rend_poke_sphere(*sphere1);
       rend_poke_sphere(*sphere2);
       if gkey_pressed(119)current_choice += 1;
       if gkey_pressed(115)current_choice -= 1;
-      current_choice = xx max(0,min(2,current_choice));
-      rend_cube_in_pos(.{}, .{1,1,1,1},xx( #char "0" + current_choice));
-    case .ARCADE;
-      rend_poke_sphere(*sphere1);
-      rend_poke_sphere(*sphere2);   
-      if gkey_pressed(119)current_choice += 1;
-      if gkey_pressed(115)current_choice -= 1;
-      current_choice = xx max(0,min(2,current_choice));
-      rend_cube_in_pos(.{}, .{1,1,1,1},xx( #char "0" + current_choice));
+      current_choice = xx max(0,min(3,current_choice));
+      rend_advantage_cube(.{}, .{1,1,1,1},xx current_choice);
     case;
       assert(false);
   }
@@ -196,11 +193,23 @@ do_options_menu :: (state : *GameState) {
 //--------------------------------------------------
 //--------------------------------------------------
 
-rend_cube_in_pos :: (pos : gVec3, col : gVec4, c : u8) {
+rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {
   ogl_clear_all();
   model_mat := make_translation_matrix(pos);
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, 800.0/600.0, 0.001, 50.0);
+
+  c : u8 = #char "0";
+  if adv == .NoEffect {
+    c = #char "0";
+  }else if adv == .NotVeryEffective {
+    c = #char "5";
+  }else if adv == .Normal{
+    c = #char "1";
+  }else if adv == .SuperEffective {
+    c = #char "2";
+  }
+
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, c);
 
   ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
@@ -259,7 +268,7 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
 
   ogl_clear_all();
-  //rend_cube_in_pos(lp, .{1,1,1,1});
+  //rend_advantage_cube(lp, .{1,1,1,1});
 }
 
 //--------------------------------------------------
@@ -340,6 +349,13 @@ type_test :: () {
   assert(type_chart[PokeType.DRAGON][PokeType.FAIRY] == 0.0);
 }
 #run type_test();
+
+PokeTypeAdvantage :: enum {
+  NoEffect;
+  NotVeryEffective;
+  Normal;
+  SuperEffective;
+}
 
 PKMNTypeSphere :: struct {
   type : PokeType;

@@ -12,7 +12,7 @@ build :: () {
         set_optimization(*target_options, Optimization_Type.DEBUG, true);
         // set_optimization(*target_options, Optimization_Type.OPTIMIZED);
         target_options.output_type = .EXECUTABLE;      
-        target_options.output_executable_name = "tt";
+        target_options.output_executable_name = "ptt";
         target_options.output_path = "./.build";
 
         import_path: [..] string;
