@@ -4,6 +4,7 @@
 #import "System";
 #import "Math";
 #import "../engine";
+#import "File";
 
 //SHITTY GAME IDEA to test the engine works as expected:
 //We can make a Pokemon Type Trainer App. There will be 2-4 PBR type balls and the player must choose the ones that match
@@ -29,10 +30,18 @@ GameState :: struct {
   window : gWin;
   sim_start : float64;
   current_choice : s32 = 1;
-  transition_speed : int = 1; //time to transition from each gameplay scene (rotation)
+  transition_speed : int = 2; //time to transition from each gameplay scene (rotation)
   transition_percent : float;
   transition_color : gVec4;
+
+  victory_sound : gSound;
+  defeat_sound : gSound;
+  click_sound : gSound;
 }
+
+victory_sound_bytes := #run read_entire_file("assets/sounds/victory.wav");
+defeat_sound_bytes := #run read_entire_file("assets/sounds/defeat.wav");
+click_sound_bytes := #run read_entire_file("assets/sounds/click.wav");
 
 game_init :: (state : *GameState) {
   using state;
@@ -41,6 +50,10 @@ game_init :: (state : *GameState) {
   rend_dim : gVec2 = .{800,600};
   window = gwin_create("Type Trainer ALPHA",xx win_dim.x, xx win_dim.y, GWIN_OPT.RESIZABLE | GWIN_OPT.VISIBLE); 
   grend_init(*window);
+  gsound_init();
+  gsound_load_from_bytes(*victory_sound,"victory", victory_sound_bytes);
+  gsound_load_from_bytes(*defeat_sound,"defeat", defeat_sound_bytes);
+  gsound_load_from_bytes(*click_sound,"click", click_sound_bytes);
 }
 game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   using state;
@@ -73,6 +86,7 @@ game_update :: (state : *GameState) {
     case;
       assert(false);
   }
+  gsound_update();
 
 }
 
@@ -114,11 +128,13 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_add_title(*layout, "Type Trainer");
   gui_panel_layout_row(*layout, 2);
   if gui_panel_layout_add_button(*layout, "Practice") {
+    gsound_play(*gs.click_sound);
     init_spheres();
     gs.transition_color = gVec4.{0.0,0.0,0.0,0.0};
     game_set_scene(state, 1.0, .PRACTICE);
   }
   if gui_panel_layout_add_button(*layout, "Arcade") {
+    gsound_play(*gs.click_sound);
     gs.transition_speed = 5;
     gs.transition_color = gVec4.{0.0,0.0,0.0,1.0};
     init_spheres();
@@ -126,11 +142,13 @@ do_main_menu :: (state : *GameState) {
   }
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Options") {
+    gsound_play(*gs.click_sound);
     game_set_scene(state, 1.0, .OPTIONS_MENU);
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Exit") {
+    gsound_play(*gs.click_sound);
     ges.exit = true;
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
@@ -174,6 +192,7 @@ do_options_menu :: (state : *GameState) {
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Back") {
+    gsound_play(*gs.click_sound);
     game_set_scene(state, 1.0, .MAIN_MENU);
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
@@ -214,6 +233,7 @@ do_game :: () {
     print("% -[%]-> %\n", sphere2.type, scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]), sphere1.type);
     gs.transition_color = ifx correct then gVec4.{0.0,1.0,0.0,0.2} else gVec4.{1.0,0.0,0.0,0.2};
     gen_spheres();
+    if correct then gsound_play(*gs.victory_sound); else gsound_play(*gs.defeat_sound);
     game_set_scene(*gs, 1.0, gs.current_scene);
   }
   rend_fade_effect();

@@ -9,3 +9,5 @@
 #load "rend/grend.jai";
 #load "rend/gmesh.jai";
 #load "rend/gcam.jai";
+
+#load "audio/gsound.jai";

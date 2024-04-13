@@ -606,3 +606,18 @@ void main()
     FragColor = color * (1.0-delta);
 }
 END
+
+//This pixelization shader should probably be in the last post-proc shader (currently the fade effect)
+// out vec4 FinalColor;
+// in vec2 FragUV;
+// uniform sampler2D Texture;
+
+// void main()
+// {
+//         float Pixels = 512.0;
+//         float dx = 15.0 * (1.0 / Pixels);
+//         float dy = 10.0 * (1.0 / Pixels);
+//         vec2 Coord = vec2(dx * floor(FragUV.x / dx),
+//                           dy * floor(FragUV.y / dy));
+//         FinalColor = texture(Texture, Coord);
+// }
