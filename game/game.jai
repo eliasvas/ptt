@@ -31,6 +31,7 @@ GameState :: struct {
   current_choice : s32 = 1;
   transition_speed : int = 1; //time to transition from each gameplay scene (rotation)
   transition_percent : float;
+  transition_color : gVec4;
 }
 
 game_init :: (state : *GameState) {
@@ -114,12 +115,12 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_row(*layout, 2);
   if gui_panel_layout_add_button(*layout, "Practice") {
     init_spheres();
+    gs.transition_color = gVec4.{0.0,0.0,0.0,0.0};
     game_set_scene(state, 1.0, .PRACTICE);
   }
   if gui_panel_layout_add_button(*layout, "Arcade") {
-    sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
-    sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
     gs.transition_speed = 5;
+    gs.transition_color = gVec4.{0.0,0.0,0.0,1.0};
     init_spheres();
     game_set_scene(state, 1.0, .ARCADE);
   }
@@ -202,15 +203,20 @@ do_game :: () {
   rend_poke_sphere(*sphere2);
   if gkey_pressed(#char "w")gs.current_choice += 1;
   if gkey_pressed(#char "s")gs.current_choice -= 1;
-  gs.current_choice = (gs.current_choice) % 4;
+  if (gs.current_choice < 0)gs.current_choice = 3;
+  if (gs.current_choice > 3)gs.current_choice = 0;
   rend_advantage_cube(.{}, .{1,1,1,1},xx gs.current_choice);
   if gkey_pressed(#char " ") && abs(gs.transition_percent - 1.0) < 0.01 { //calc
     choice : PokeTypeAdvantage = xx gs.current_choice;
     actual : PokeTypeAdvantage = scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]);
-    print("choice=[%], actual=[%], status=[%]\n", choice, actual, ifx choice == actual then "correct!" else "wrong!");
+    correct : bool = (choice == actual);
+    //print("choice=[%], actual=[%], status=[%]\n", choice, actual, ifx correct then "correct!" else "wrong!");
+    print("% -[%]-> %\n", sphere2.type, scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]), sphere1.type);
+    gs.transition_color = ifx correct then gVec4.{0.0,1.0,0.0,0.2} else gVec4.{1.0,0.0,0.0,0.2};
     gen_spheres();
     game_set_scene(*gs, 1.0, gs.current_scene);
   }
+  rend_fade_effect();
 }
 
 scalar_to_poke_type_advantage :: (scalar : float) -> PokeTypeAdvantage {
@@ -228,6 +234,15 @@ scalar_to_poke_type_advantage :: (scalar : float) -> PokeTypeAdvantage {
       assert(false);
   }
   return res;
+}
+
+rend_fade_effect :: () {
+  ogl_clear_all();
+  ogl_bind_vertex_buffer(*ogl_ctx.fade_vbo);
+  ogl_bind_shader_object(*ogl_ctx.fade_sp);
+  ogl_shader_object_set_uniform(*ogl_ctx.fade_sp, "delta", oglShaderDataType.FLOAT, xx *gs.transition_percent);
+  ogl_shader_object_set_uniform(*ogl_ctx.fade_sp, "color", oglShaderDataType.VEC4, xx *gs.transition_color);
+  ogl_draw(oglPrimitive.TRIANGLES, 0, xx 3);
 }
 
 rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {

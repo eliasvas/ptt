@@ -23,6 +23,9 @@ oglContext :: struct {
 
     //shader_program_3D : GLuint;
     sp3D : oglShaderObject;
+    fade_sp : oglShaderObject;
+
+    fade_vbo : oglBuf;
 
     sphere_vbo : oglBuf;
     sphere_ibo : oglBuf;
@@ -53,11 +56,12 @@ ogl_init :: () {
     //ogl_ctx.cube_ibo = ogl_make_buffer(.INDEX, cube_idx.data, cube_idx.count, size_of(u32));
 
     ogl_shader_object_init(*ogl_ctx.sp3D,vertex_shader_3D_source, fragment_shader_3D_source);
-
     ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(0, oglShaderDataType.VEC3, size_of(gVertex), xx offset_of(gVertex, #code pos)));
     ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(1, oglShaderDataType.VEC3, size_of(gVertex), xx offset_of(gVertex, #code norm)));
     ogl_shader_object_add_attrib(*ogl_ctx.sp3D, ogl_make_attrib(2, oglShaderDataType.VEC2, size_of(gVertex), xx offset_of(gVertex, #code tex_coord)));
 
+    ogl_ctx.fade_vbo = ogl_make_buffer(.VERTEX, null, 0, 0);
+    ogl_shader_object_init(*ogl_ctx.fade_sp, vert_fade_sp_source, frag_fade_sp_source);
     //debug texture initialization
     t_w : u32 = 400;
     t_h : u32 = 400;
@@ -140,7 +144,8 @@ ogl_clear_all :: () {
     //...
     glBindVertexArray(ogl_ctx.vao);
     glEnable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
+    //glDisable(GL_BLEND);
+    glEnable(GL_BLEND);
 }
 //----------------------------------------------------------------------------
 // - oglShaderDymamicState
@@ -576,5 +581,28 @@ void main()
     vec3 result = (ambient + diffuse) * (col.xyz * delta + prev_col.xyz * (1.0 - delta)) * col_tex.xyz;
 
     FragColor = vec4(result, 1.0);
+}
+END
+
+
+
+vert_fade_sp_source :: #string END
+#version 330 core
+out vec2 outUV;
+void main() 
+{
+    outUV = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    gl_Position = vec4(outUV * 2.0f + -1.0f, 0.0f, 1.0f);
+}
+END;
+frag_fade_sp_source:: #string END
+#version 330 core
+out vec4 FragColor;
+in vec2 outUV; //maybe this can become some onscreen effect
+uniform vec4 color;
+uniform float delta;
+void main()
+{
+    FragColor = color * (1.0-delta);
 }
 END
