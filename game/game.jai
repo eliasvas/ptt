@@ -12,6 +12,7 @@
 //also gameplay transition should be texture interpolation of previous and next type and to go to starting pos and restart simulation
 //also implement some form of stylized rendering, even if its just a post-proc effect, blin-phong is boring as SHIT
 //These + a simple deferred renderer that will render the type spheres with a pre-loaded texture should be enough
+//also routine to display text at the upper half of screen at the beginning for controls and INFO messages
 
 GameScene :: enum {
   MAIN_MENU;
@@ -28,7 +29,8 @@ GameState :: struct {
   window : gWin;
   sim_start : float64;
   current_choice : s32 = 1;
-  transition_speed : float = 4.0; //time to transition from each gameplay scene (rotation)
+  transition_speed : int = 1; //time to transition from each gameplay scene (rotation)
+  transition_percent : float;
 }
 
 game_init :: (state : *GameState) {
@@ -44,12 +46,10 @@ game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   sim_start = seconds_since_init();
   gcam_init(*grc.main_cam, .{0,0,10});
   sphere1.direction = 1.0;
-  sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
   sphere2.direction = -1.0;
-  sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
-  current_choice = 0;
   //wait trans_sec
   current_scene = scene;
+  grc.main_cam.mode = .FIXED;
 }
 
 game_update :: (state : *GameState) {
@@ -67,12 +67,8 @@ game_update :: (state : *GameState) {
     case .PRACTICE;
       #through;
     case .ARCADE;
-      rend_poke_sphere(*sphere1);
-      rend_poke_sphere(*sphere2);
-      if gkey_pressed(119)current_choice += 1;
-      if gkey_pressed(115)current_choice -= 1;
-      current_choice = xx max(0,min(3,current_choice));
-      rend_advantage_cube(.{}, .{1,1,1,1},xx current_choice);
+       do_game();
+      
     case;
       assert(false);
   }
@@ -116,11 +112,16 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_begin(*main_menu_gui_panel, *layout);
   gui_panel_layout_add_title(*layout, "Type Trainer");
   gui_panel_layout_row(*layout, 2);
-  if gui_panel_layout_add_button(*layout, "Arcade") {
-    game_set_scene(state, 1.0, .ARCADE);
-  }
   if gui_panel_layout_add_button(*layout, "Practice") {
+    init_spheres();
     game_set_scene(state, 1.0, .PRACTICE);
+  }
+  if gui_panel_layout_add_button(*layout, "Arcade") {
+    sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
+    sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
+    gs.transition_speed = 5;
+    init_spheres();
+    game_set_scene(state, 1.0, .ARCADE);
   }
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Options") {
@@ -154,7 +155,7 @@ options_menu_gui_panel: guiPanel;
 do_options_menu :: (state : *GameState) {
   using state;
   wh_ratio : float = 2.0;
-  num_categories := 3;
+  num_categories := 4;
   panel_w : float = window.dim.x / 2.0;
   panel_h : float = panel_w / (num_categories * wh_ratio);
   main_menu_gui_panel.x0 = window.dim.x/2.0 - main_menu_gui_panel.w/2.0;
@@ -164,6 +165,8 @@ do_options_menu :: (state : *GameState) {
   gui_panel_layout_add_title(*layout, "Options");
   gui_panel_layout_row(*layout, 1);
   gui_panel_layout_add_slider(*layout, "Volume", *game_volume, 0, 100);
+  gui_panel_layout_row(*layout, 1);
+  gui_panel_layout_add_slider(*layout, "Anim Speed", *gs.transition_speed, 0, 5);
   gui_panel_layout_row(*layout, 2);
   gui_panel_layout_add_checkbox(*layout, "Anims", *animations_on);
   gui_panel_layout_add_checkbox(*layout, "Effects", *effects_on);
@@ -192,6 +195,40 @@ do_options_menu :: (state : *GameState) {
 // GAME 
 //--------------------------------------------------
 //--------------------------------------------------
+
+do_game :: () {
+  gs.transition_percent = cast(float)(min(gs.transition_speed*(seconds_since_init() - gs.sim_start),1.0));
+  rend_poke_sphere(*sphere1);
+  rend_poke_sphere(*sphere2);
+  if gkey_pressed(#char "w")gs.current_choice += 1;
+  if gkey_pressed(#char "s")gs.current_choice -= 1;
+  gs.current_choice = (gs.current_choice) % 4;
+  rend_advantage_cube(.{}, .{1,1,1,1},xx gs.current_choice);
+  if gkey_pressed(#char " ") && abs(gs.transition_percent - 1.0) < 0.01 { //calc
+    choice : PokeTypeAdvantage = xx gs.current_choice;
+    actual : PokeTypeAdvantage = scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]);
+    print("choice=[%], actual=[%], status=[%]\n", choice, actual, ifx choice == actual then "correct!" else "wrong!");
+    gen_spheres();
+    game_set_scene(*gs, 1.0, gs.current_scene);
+  }
+}
+
+scalar_to_poke_type_advantage :: (scalar : float) -> PokeTypeAdvantage {
+  res : PokeTypeAdvantage = .NoEffect;
+  if scalar == {
+    case 0.0;
+      res = .NoEffect;
+    case 0.5;
+      res = .NotVeryEffective;
+    case 1.0;
+      res = .Normal;
+    case 2.0;
+      res = .SuperEffective;
+    case;
+      assert(false);
+  }
+  return res;
+}
 
 rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {
   ogl_clear_all();
@@ -222,7 +259,11 @@ rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {
   tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_start", oglShaderDataType.VEC2, xx *tc_start);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_end", oglShaderDataType.VEC2, xx *tc_end);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "delta", oglShaderDataType.FLOAT, xx *gs.transition_percent);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_col", oglShaderDataType.VEC4, xx *col);
   lp : gVec3 = .{-5,5,3};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
   ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
@@ -237,8 +278,9 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_clear_all();
   //ogl_image_bind(*ogl_ctx.def_fbo);
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.type]);
+  prev_glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.prev_type]);
   aspect := 800.0 / 600.0; 
-  sphere_angle := (PI) + cast(float)(min(gs.transition_speed*(seconds_since_init() - gs.sim_start),1.0)) * (PI);
+  sphere_angle := (PI) + gs.transition_percent * (PI);
   model_mat := gmat4_mul(make_rotation_matrix( sphere_angle , .{0.0,0.0,1.0}) , gmat4_mul(make_translation_matrix(.{sphere.direction * 4,0,0}),make_rotation_matrix( sphere_angle, .{0.0,0.0,-1.0})));
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
@@ -253,10 +295,20 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
   tc_end := tc_start;
   tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
+
+  prev_tc_start : gVec2 = .{cast(float)prev_glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
+  prev_tc_end := prev_tc_start;
+  prev_tc_end += .{cast(float)prev_glyph.size_x / grc.default_atlas.size_x, cast(float)prev_glyph.size_y / grc.default_atlas.size_y};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_start", oglShaderDataType.VEC2, xx *prev_tc_start);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_end", oglShaderDataType.VEC2, xx *prev_tc_end);
+  delta := min(1.0, 5 * gs.transition_percent);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "delta", oglShaderDataType.FLOAT, xx *delta);
   col : gVec4 = .{type_colors[sphere.type].x,type_colors[sphere.type].y,type_colors[sphere.type].z,1.0};
+  prev_col : gVec4 = .{type_colors[sphere.prev_type].x,type_colors[sphere.prev_type].y,type_colors[sphere.prev_type].z,1.0};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_col", oglShaderDataType.VEC4, xx *prev_col);
   lp : gVec3 = .{-5,5,3};
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
 
@@ -271,6 +323,20 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   //rend_advantage_cube(lp, .{1,1,1,1});
 }
 
+init_spheres :: () {
+  sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
+  sphere1.prev_type = sphere1.type;
+  sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
+  sphere2.prev_type = sphere2.type;
+}
+ 
+gen_spheres :: () {
+  sphere1.prev_type = sphere2.type;
+  sphere2.prev_type = sphere1.type;
+  sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
+  sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
+}
+ 
 //--------------------------------------------------
 //--------------------------------------------------
 // POKEMON STUFF 
@@ -359,6 +425,7 @@ PokeTypeAdvantage :: enum {
 
 PKMNTypeSphere :: struct {
   type : PokeType;
+  prev_type : PokeType; //for transition
   //pos : gVec3;
   radius : float; // its pretty much scale
   direction : float;

@@ -538,7 +538,11 @@ in vec3 aNormal;
 in vec3 aFragPos;
 uniform vec2 tc_start;
 uniform vec2 tc_end;
+uniform vec2 prev_tc_start;
+uniform vec2 prev_tc_end;
+uniform float delta;
 uniform vec4 col;
+uniform vec4 prev_col;
 uniform sampler2D tex;
 
 vec3 lightColor = vec3(0.8,0.8,0.8);
@@ -549,8 +553,13 @@ void main()
 {
     //vec2 new_tc = vec2(tc.x, tc.y) * 3 - 1;
     vec2 neww_tc = tc_start + tc * (tc_end - tc_start);
-
     vec3 col_tex = texture(tex, neww_tc).rgb * vec3(1,1,1);
+
+    vec2 neww_tc_prev = prev_tc_start + tc * (prev_tc_end - prev_tc_start);
+    vec3 col_tex_prev = texture(tex, neww_tc_prev).rgb * vec3(1,1,1);
+
+    col_tex = col_tex_prev * (1.0 - delta) + col_tex * delta;
+
     // if (new_tc.x > 1.0) col = vec3(0,0,0);
     // if (new_tc.x < 0.0) col = vec3(0,0,0);
     // col *= -1.0;
@@ -564,7 +573,7 @@ void main()
     vec3 lightDir = normalize(lightPos - aFragPos); 
     float diff = max(dot(norm, normalize(lightDir)), 0.0);
     vec3 diffuse = diff * lightColor;
-    vec3 result = (ambient + diffuse) * col.xyz * col_tex.xyz;
+    vec3 result = (ambient + diffuse) * (col.xyz * delta + prev_col.xyz * (1.0 - delta)) * col_tex.xyz;
 
     FragColor = vec4(result, 1.0);
 }
