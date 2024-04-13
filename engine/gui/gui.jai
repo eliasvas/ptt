@@ -110,6 +110,7 @@ gui_checkbox :: (s : string, r : gRect, val : *bool) -> bool {
         if gkey_released(xx gInputMouseKey.LMB) {
             if gui.hot == id {
                 val.* = !val.*;
+                res = true;
             }
             gui.active = 0;
         } 
@@ -128,7 +129,7 @@ gui_checkbox :: (s : string, r : gRect, val : *bool) -> bool {
         render_basic_string(s,text_r.x0, text_r.y0, scale);
     } 
 
-    return val.*;
+    return res;
 }
 
 gui_button :: (s : string, r : gRect) -> bool {

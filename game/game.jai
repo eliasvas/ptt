@@ -24,8 +24,7 @@ GameScene :: enum {
 
 GameState :: struct {
   current_scene : GameScene = .MAIN_MENU;
-  animations_on : bool = true;
-  effects_on : bool = false;
+  animations_on : bool = false;
   game_volume : int = 80;
   window : gWin;
   sim_start : float64;
@@ -37,11 +36,14 @@ GameState :: struct {
   victory_sound : gSound;
   defeat_sound : gSound;
   click_sound : gSound;
-}
 
+  bmusic_sound : gSound;
+  bmusic_on : bool = true;
+}
 victory_sound_bytes := #run read_entire_file("assets/sounds/victory.wav");
 defeat_sound_bytes := #run read_entire_file("assets/sounds/defeat.wav");
 click_sound_bytes := #run read_entire_file("assets/sounds/click.wav");
+bmusic_sound_bytes := #run read_entire_file("assets/sounds/bmusic.ogg");
 
 game_init :: (state : *GameState) {
   using state;
@@ -53,7 +55,11 @@ game_init :: (state : *GameState) {
   gsound_init();
   gsound_load_from_bytes(*victory_sound,"victory", victory_sound_bytes);
   gsound_load_from_bytes(*defeat_sound,"defeat", defeat_sound_bytes);
+  defeat_sound.rel_volume = 2.0;
   gsound_load_from_bytes(*click_sound,"click", click_sound_bytes);
+  gsound_load_from_bytes(*bmusic_sound,"bmusic", bmusic_sound_bytes);
+  bmusic_sound.rel_volume = 0.5;
+  gsound_play(*gs.bmusic_sound, get_game_volume(),true);
 }
 game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   using state;
@@ -128,13 +134,13 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_add_title(*layout, "Type Trainer");
   gui_panel_layout_row(*layout, 2);
   if gui_panel_layout_add_button(*layout, "Practice") {
-    gsound_play(*gs.click_sound);
+    gsound_play(*gs.click_sound, get_game_volume());
     init_spheres();
     gs.transition_color = gVec4.{0.0,0.0,0.0,0.0};
     game_set_scene(state, 1.0, .PRACTICE);
   }
   if gui_panel_layout_add_button(*layout, "Arcade") {
-    gsound_play(*gs.click_sound);
+    gsound_play(*gs.click_sound, get_game_volume());
     gs.transition_speed = 5;
     gs.transition_color = gVec4.{0.0,0.0,0.0,1.0};
     init_spheres();
@@ -142,13 +148,13 @@ do_main_menu :: (state : *GameState) {
   }
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Options") {
-    gsound_play(*gs.click_sound);
+    gsound_play(*gs.click_sound, get_game_volume());
     game_set_scene(state, 1.0, .OPTIONS_MENU);
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Exit") {
-    gsound_play(*gs.click_sound);
+    gsound_play(*gs.click_sound, get_game_volume());
     ges.exit = true;
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
@@ -184,15 +190,19 @@ do_options_menu :: (state : *GameState) {
   gui_panel_layout_add_title(*layout, "Options");
   gui_panel_layout_row(*layout, 1);
   gui_panel_layout_add_slider(*layout, "Volume", *game_volume, 0, 100);
+  //global_stream.user_volume_scale = cast(float)game_volume / 100.0;
+  set_master_vol(cast(float)game_volume / 100.0);
   gui_panel_layout_row(*layout, 1);
   gui_panel_layout_add_slider(*layout, "Anim Speed", *gs.transition_speed, 0, 5);
   gui_panel_layout_row(*layout, 2);
+  if gui_panel_layout_add_checkbox(*layout, "Theme", *bmusic_on) {
+    if bmusic_on then gsound_play(*bmusic_sound, get_game_volume(), true); else gsound_stop(*bmusic_sound);
+  }
   gui_panel_layout_add_checkbox(*layout, "Anims", *animations_on);
-  gui_panel_layout_add_checkbox(*layout, "Effects", *effects_on);
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Back") {
-    gsound_play(*gs.click_sound);
+    gsound_play(*gs.click_sound, get_game_volume());
     game_set_scene(state, 1.0, .MAIN_MENU);
   }
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
@@ -233,7 +243,7 @@ do_game :: () {
     print("% -[%]-> %\n", sphere2.type, scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]), sphere1.type);
     gs.transition_color = ifx correct then gVec4.{0.0,1.0,0.0,0.2} else gVec4.{1.0,0.0,0.0,0.2};
     gen_spheres();
-    if correct then gsound_play(*gs.victory_sound); else gsound_play(*gs.defeat_sound);
+    if correct then gsound_play(*gs.victory_sound, get_game_volume()); else gsound_play(*gs.defeat_sound, get_game_volume());
     game_set_scene(*gs, 1.0, gs.current_scene);
   }
   rend_fade_effect();
@@ -371,6 +381,11 @@ gen_spheres :: () {
   sphere1.type = xx (random_get() % cast(u64)PokeType.COUNT);
   sphere2.type = xx (random_get() % cast(u64)PokeType.COUNT);
 }
+
+get_game_volume :: () -> float {
+  return (cast(float)gs.game_volume/100.0);
+}
+
  
 //--------------------------------------------------
 //--------------------------------------------------
