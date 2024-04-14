@@ -24,7 +24,7 @@ GameScene :: enum {
 
 GameState :: struct {
   current_scene : GameScene = .MAIN_MENU;
-  animations_on : bool = false;
+  scalar_adv : bool = false;
   game_volume : int = 80;
   window : gWin;
   sim_start : float64;
@@ -75,7 +75,6 @@ game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   current_scene = scene;
   grc.main_cam.mode = .FIXED;
   if scene != .TRAINING && scene != .ARCADE {
-    print("reset");
     gs.correct_choices = 0;
     gs.choice_count = 0;
   }
@@ -205,7 +204,7 @@ do_options_menu :: (state : *GameState) {
   if gui_panel_layout_add_checkbox(*layout, "Theme", *bmusic_on) {
     if bmusic_on then gsound_play(*bmusic_sound, get_game_volume(), true); else gsound_stop(*bmusic_sound);
   }
-  gui_panel_layout_add_checkbox(*layout, "Anims", *animations_on);
+  gui_panel_layout_add_checkbox(*layout, "scalar adv", *scalar_adv);
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Back") {
@@ -409,8 +408,6 @@ get_prev_choice :: (choice : s32) -> s32 {
 //--------------------------------------------------
 //--------------------------------------------------
 rend_select_prompt :: () {
-  //render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float, alpha : float = 1.0A)
-
   prompt_scale := (0.5) * (grc.window_ref.dim.x/800.0);
 
   choice : PokeTypeAdvantage = xx gs.current_choice;
@@ -421,20 +418,36 @@ rend_select_prompt :: () {
   scaled_prompt_scale := (0.5 + scale_mod) * (grc.window_ref.dim.x/800.0);
   biggest_prompt := sprint("%", PokeTypeAdvantage.NotVeryEffective);
   biggest_width, biggest_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,biggest_prompt,prompt_scale);
-  prompt := sprint("%", cast(PokeTypeAdvantage)gs.current_choice);
+  //prompt := sprint("%", cast(PokeTypeAdvantage)gs.current_choice);
+  prompt : string;
+  if gs.scalar_adv {
+    prompt = sprint("%", PokeTypeAdvantageScalar[gs.current_choice]);
+  }else {
+    prompt = sprint("%", cast(PokeTypeAdvantage)gs.current_choice);
+  }
   defer free(prompt.data);
   prompt_width, prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,prompt_scale);
   scaled_prompt_width, scaled_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,scaled_prompt_scale);
   render_basic_string(prompt, xx (grc.window_ref.dim.x/2.0 - scaled_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prompt_height/2.0), scaled_prompt_scale);
 
   prev_prompt_scale := 0.4 * (grc.window_ref.dim.x/800.0);
-  prev_prompt := sprint("%", cast(PokeTypeAdvantage)get_next_choice(gs.current_choice));
+  prev_prompt : string;
+  if gs.scalar_adv {
+    prev_prompt = sprint("%", PokeTypeAdvantageScalar[get_next_choice(gs.current_choice)]);
+  }else {
+    prev_prompt = sprint("%", cast(PokeTypeAdvantage)get_next_choice(gs.current_choice));
+  }
   defer free(prev_prompt.data);
   prev_prompt_width, prev_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prev_prompt,prev_prompt_scale);
   render_basic_string(prev_prompt, xx (grc.window_ref.dim.x/2.0 - prev_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prev_prompt_height/2.0 - biggest_height), prev_prompt_scale, 0.4);
  
   next_prompt_scale := 0.4 * (grc.window_ref.dim.x/800.0);
-  next_prompt := sprint("%", cast(PokeTypeAdvantage)get_prev_choice(gs.current_choice));
+  next_prompt : string;
+  if gs.scalar_adv {
+    next_prompt = sprint("%", PokeTypeAdvantageScalar[get_prev_choice(gs.current_choice)]);
+  }else {
+    next_prompt = sprint("%", cast(PokeTypeAdvantage)get_prev_choice(gs.current_choice));
+  }
   defer free(next_prompt.data);
   next_prompt_width, next_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,next_prompt,next_prompt_scale);
   render_basic_string(next_prompt, xx (grc.window_ref.dim.x/2.0 - next_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - next_prompt_height/2.0 + biggest_height), next_prompt_scale, 0.4);
@@ -526,6 +539,8 @@ type_test :: () {
   assert(type_chart[PokeType.DRAGON][PokeType.FAIRY] == 0.0);
 }
 #run type_test();
+
+PokeTypeAdvantageScalar : [] string = string.[ "x0","x0.5","x1","x2" ];
 
 PokeTypeAdvantage :: enum {
   NoEffect;
