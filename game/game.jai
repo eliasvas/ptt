@@ -6,15 +6,6 @@
 #import "../engine";
 #import "File";
 
-//SHITTY GAME IDEA to test the engine works as expected:
-//We can make a Pokemon Type Trainer App. There will be 2-4 PBR type balls and the player must choose the ones that match
-
-//PRIMARY feedback loop should be on-screen effects, like red fade for wrong and green fade for success + sounds?
-//also gameplay transition should be texture interpolation of previous and next type and to go to starting pos and restart simulation
-//also implement some form of stylized rendering, even if its just a post-proc effect, blin-phong is boring as SHIT
-//These + a simple deferred renderer that will render the type spheres with a pre-loaded texture should be enough
-//also routine to display text at the upper half of screen at the beginning for controls and INFO messages
-
 GameScene :: enum {
   MAIN_MENU;
   OPTIONS_MENU;
@@ -42,6 +33,8 @@ GameState :: struct {
 
   correct_choices : int = 0;
   choice_count : int = 0;
+
+  controls_help_alpha : float = 1.0;
 }
 victory_sound_bytes := #run read_entire_file("assets/sounds/victory.wav");
 defeat_sound_bytes := #run read_entire_file("assets/sounds/defeat.wav");
@@ -75,6 +68,7 @@ game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   current_scene = scene;
   grc.main_cam.mode = .FIXED;
   if scene != .TRAINING && scene != .ARCADE {
+    gs.controls_help_alpha = 1.0;
     gs.correct_choices = 0;
     gs.choice_count = 0;
   }
@@ -101,7 +95,7 @@ game_update :: (state : *GameState) {
       assert(false);
   }
   gsound_update();
-
+  rend_esc_help();
 }
 
 game_exit :: (state : *GameState) {
@@ -214,14 +208,13 @@ do_options_menu :: (state : *GameState) {
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
 
 
-  fps_scale := 0.5;
-  fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
-  defer free(fps_counter.data);
-  fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
-  color : u32 = 0xFFFFFFFF;
-  color = (color << 20);
-  render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
-
+  // fps_scale := 0.5;
+  // fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
+  // defer free(fps_counter.data);
+  // fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
+  // color : u32 = 0xFFFFFFFF;
+  // color = (color << 20);
+  // render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
   gbatch_renderer_flush(*grc.br);
 
 }
@@ -252,7 +245,13 @@ do_game :: () {
     gs.choice_count +=1;
     game_set_scene(*gs, 1.0, gs.current_scene);
   }
+  if gs.correct_choices > 0 {
+    speed := 2.0;
+    gs.controls_help_alpha -= cast(float)ges.dt * speed;
+    gs.controls_help_alpha = max(0.0, gs.controls_help_alpha);
+  }
   rend_select_prompt();
+  rend_controls_help(); 
   if gs.current_scene == .ARCADE{
     rend_accuracy_stats();
   }
@@ -404,9 +403,25 @@ get_prev_choice :: (choice : s32) -> s32 {
 
 //--------------------------------------------------
 //--------------------------------------------------
-// SELECT PROMPT 
+// GAME UI 
 //--------------------------------------------------
 //--------------------------------------------------
+rend_esc_help :: () {
+  esc_scale := (0.5) * (grc.window_ref.dim.x/800.0);
+  esc_help :string= "Esc to Menu";
+  //defer free(esc_help.data);
+  esc_width, esc_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,esc_help,esc_scale);
+  alpha : float = ifx gs.current_scene == .MAIN_MENU then 0.2 else 0.7;
+  render_basic_string(esc_help, 0, 0, esc_scale, alpha);
+}
+
+rend_controls_help :: () {
+  con_scale := (0.5 + 0.01 * sin(cast(float)seconds_since_init()*5)) * (grc.window_ref.dim.x/800.0);
+  con_help :string= "W/S to select, Space to commit";
+  con_width, con_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,con_help,con_scale);
+  //render_basic_string(con_help, 0, 0, con_scale, gs.controls_help_alpha);
+  render_basic_string(con_help, grc.window_ref.dim.x/2 - con_width/2, grc.window_ref.dim.y - con_height, con_scale, gs.controls_help_alpha);
+}
 rend_select_prompt :: () {
   prompt_scale := (0.5) * (grc.window_ref.dim.x/800.0);
 
@@ -414,7 +429,7 @@ rend_select_prompt :: () {
   actual : PokeTypeAdvantage = scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]);
   correct : bool = (choice == actual);
  
-  scale_mod := ifx correct && gs.current_scene == .TRAINING then 0.005 * sin(cast(float)seconds_since_init()*5) else 0;
+  scale_mod := ifx correct && gs.current_scene == .TRAINING then 0.01 * sin(cast(float)seconds_since_init()*7) else 0;
   scaled_prompt_scale := (0.5 + scale_mod) * (grc.window_ref.dim.x/800.0);
   biggest_prompt := sprint("%", PokeTypeAdvantage.NotVeryEffective);
   biggest_width, biggest_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,biggest_prompt,prompt_scale);
@@ -428,7 +443,9 @@ rend_select_prompt :: () {
   defer free(prompt.data);
   prompt_width, prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,prompt_scale);
   scaled_prompt_width, scaled_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,scaled_prompt_scale);
-  render_basic_string(prompt, xx (grc.window_ref.dim.x/2.0 - scaled_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prompt_height/2.0), scaled_prompt_scale);
+  col : gVec4 = .{0.95,0.95,0.95,1.0};
+  if correct && gs.current_scene == .TRAINING then col = .{0.1,0.9,0.1,1.0};else if !correct && gs.current_scene == .TRAINING then col = .{0.5,0.1,0.1,1.0};
+  render_string(prompt, xx (grc.window_ref.dim.x/2.0 - scaled_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prompt_height/2.0), scaled_prompt_scale, col);
 
   prev_prompt_scale := 0.4 * (grc.window_ref.dim.x/800.0);
   prev_prompt : string;
@@ -456,7 +473,7 @@ rend_select_prompt :: () {
 }
 rend_accuracy_stats :: () {
   acc_scale := (0.5) * (grc.window_ref.dim.x/800.0);
-  acc_counter := sprint("acc: %", formatFloat(ifx gs.choice_count > 0 then 100.0*(gs.correct_choices/cast(float)gs.choice_count) else 100, width=1, trailing_width=0, zero_removal=.NO));
+  acc_counter := sprint("acc: %\%", formatFloat(ifx gs.choice_count > 0 then 100.0*(gs.correct_choices/cast(float)gs.choice_count) else 100, width=1, trailing_width=0, zero_removal=.NO));
   defer free(acc_counter.data);
   acc_width, acc_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,acc_counter,acc_scale);
   render_basic_string(acc_counter, xx (grc.window_ref.dim.x - acc_width), 0, acc_scale);
