@@ -19,7 +19,7 @@ GameScene :: enum {
   MAIN_MENU;
   OPTIONS_MENU;
   ARCADE;
-  PRACTICE;
+  TRAINING;
 }
 
 GameState :: struct {
@@ -84,7 +84,7 @@ game_update :: (state : *GameState) {
       do_main_menu(*gs);
     case .OPTIONS_MENU;
       do_options_menu(*gs);
-    case .PRACTICE;
+    case .TRAINING;
       #through;
     case .ARCADE;
        do_game();
@@ -133,18 +133,18 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_begin(*main_menu_gui_panel, *layout);
   gui_panel_layout_add_title(*layout, "Type Trainer");
   gui_panel_layout_row(*layout, 2);
-  if gui_panel_layout_add_button(*layout, "Practice") {
-    gsound_play(*gs.click_sound, get_game_volume());
-    init_spheres();
-    gs.transition_color = gVec4.{0.0,0.0,0.0,0.0};
-    game_set_scene(state, 1.0, .PRACTICE);
-  }
   if gui_panel_layout_add_button(*layout, "Arcade") {
     gsound_play(*gs.click_sound, get_game_volume());
     gs.transition_speed = 5;
     gs.transition_color = gVec4.{0.0,0.0,0.0,1.0};
     init_spheres();
     game_set_scene(state, 1.0, .ARCADE);
+  }
+  if gui_panel_layout_add_button(*layout, "Training") {
+    gsound_play(*gs.click_sound, get_game_volume());
+    init_spheres();
+    gs.transition_color = gVec4.{0.0,0.0,0.0,0.0};
+    game_set_scene(state, 1.0, .TRAINING);
   }
   gui_panel_layout_row(*layout, 1);
   if gui_panel_layout_add_button(*layout, "Options") {
@@ -398,23 +398,34 @@ get_prev_choice :: (choice : s32) -> s32 {
 //--------------------------------------------------
 rend_select_prompt :: () {
   //render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float, alpha : float = 1.0A)
-  prompt_scale := 0.5;
+
+  prompt_scale := (0.5) * (grc.window_ref.dim.x/800.0);
+
+  choice : PokeTypeAdvantage = xx gs.current_choice;
+  actual : PokeTypeAdvantage = scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]);
+  correct : bool = (choice == actual);
+ 
+  scale_mod := ifx correct && gs.current_scene == .TRAINING then 0.005 * sin(cast(float)seconds_since_init()*5) else 0;
+  scaled_prompt_scale := (0.5 + scale_mod) * (grc.window_ref.dim.x/800.0);
+  biggest_prompt := sprint("%", PokeTypeAdvantage.NotVeryEffective);
+  biggest_width, biggest_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,biggest_prompt,prompt_scale);
   prompt := sprint("%", cast(PokeTypeAdvantage)gs.current_choice);
   defer free(prompt.data);
   prompt_width, prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,prompt_scale);
-  render_basic_string(prompt, xx (grc.window_ref.dim.x/2.0 - prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prompt_height/2.0), prompt_scale);
+  scaled_prompt_width, scaled_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,scaled_prompt_scale);
+  render_basic_string(prompt, xx (grc.window_ref.dim.x/2.0 - scaled_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prompt_height/2.0), scaled_prompt_scale);
 
-  prev_prompt_scale := 0.4;
+  prev_prompt_scale := 0.4 * (grc.window_ref.dim.x/800.0);
   prev_prompt := sprint("%", cast(PokeTypeAdvantage)get_next_choice(gs.current_choice));
   defer free(prev_prompt.data);
   prev_prompt_width, prev_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prev_prompt,prev_prompt_scale);
-  render_basic_string(prev_prompt, xx (grc.window_ref.dim.x/2.0 - prev_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prev_prompt_height/2.0 - prompt_height), prev_prompt_scale, 0.4);
+  render_basic_string(prev_prompt, xx (grc.window_ref.dim.x/2.0 - prev_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prev_prompt_height/2.0 - biggest_height), prev_prompt_scale, 0.4);
  
-  next_prompt_scale := 0.4;
+  next_prompt_scale := 0.4 * (grc.window_ref.dim.x/800.0);
   next_prompt := sprint("%", cast(PokeTypeAdvantage)get_prev_choice(gs.current_choice));
   defer free(next_prompt.data);
   next_prompt_width, next_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,next_prompt,next_prompt_scale);
-  render_basic_string(next_prompt, xx (grc.window_ref.dim.x/2.0 - next_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - next_prompt_height/2.0 + prompt_height), next_prompt_scale, 0.4);
+  render_basic_string(next_prompt, xx (grc.window_ref.dim.x/2.0 - next_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - next_prompt_height/2.0 + biggest_height), next_prompt_scale, 0.4);
  
   gbatch_renderer_flush(*grc.br);
 }

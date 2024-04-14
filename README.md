@@ -6,11 +6,6 @@ Main goal is to have a tiny (**<10 MB**) single executable game to show. <br />
 ## controls
 <kbd>W</kbd> + <kbd>S</kbd> to select advantage <br />
 <kbd>Space</kbd> to commit choice <br />
-## state
-![](https://progress-bar.dev/35/?title=rendering) <br />
-![](https://progress-bar.dev/60/?title=mathLib) <br />
-![](https://progress-bar.dev/40/?title=actualGame) <br />
-![](https://progress-bar.dev/75/?title=gui) <br />
 ## build + run
 You need to have a Jai compiler, git, git-lfs, SDL2 installed along with an OpenGL 3.3 compatible GPU
 ```console
