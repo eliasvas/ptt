@@ -217,7 +217,7 @@ render_basic_box :: (x0 : float, y0 : float, w : float, h : float, col : gVec4, 
         gbatch_renderer_push_quad(*grc.br,.{.{x0,y0},.{x0+w, y0+h}, .{0,0}, .{0,0},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},.{col.x,col.y,col.z,1},0,0,0});
     }
 }
-render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float) {
+render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float, alpha : float = 1.0) {
     start := gVec2.{xx pos_x,xx pos_y};
     text_width, text_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,s,scale);
 
@@ -235,7 +235,7 @@ render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float)
         cur_pos.y = start.y + (tallest_size_y - glyph.bearing_y) * scale;
         bearing_x := ifx i == 0 then 0 else glyph.bearing_x;
     
-        gbatch_renderer_push_quad(*grc.br, .{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},.{0.95,0.95,0.95,1},0,0,0});
+        gbatch_renderer_push_quad(*grc.br, .{.{xx (cur_pos.x + bearing_x * scale),xx cur_pos.y},.{xx(cur_pos.x + bearing_x * scale + glyph.size_x * scale), xx(cur_pos.y + glyph.size_y * scale)}, .{xx glyph.tc_x, xx glyph.tc_y}, .{xx (glyph.tc_x + xx glyph.size_x), xx (glyph.tc_y + xx glyph.size_y)},.{0.95,0.95,0.95,alpha},.{0.95,0.95,0.95,alpha},.{0.95,0.95,0.95,alpha},.{0.95,0.95,0.95,alpha},0,0,0});
         cur_pos.x += glyph.advance * scale;
     }
 }

@@ -2,7 +2,10 @@
 A Pokemon Type-Trainer game to learn how types work in pokemon games.
 ## description
 Jai proof-of-concept simple game made *from scratch*. <br />
-Main goal is to have a tiny (**<10 MB**) game to show. <br />
+Main goal is to have a tiny (**<10 MB**) single executable game to show. <br />
+## controls
+<kbd>W</kbd> + <kbd>S</kbd> to select advantage <br />
+<kbd>Space</kbd> to commit choice <br />
 ## state
 ![](https://progress-bar.dev/35/?title=rendering) <br />
 ![](https://progress-bar.dev/60/?title=mathLib) <br />

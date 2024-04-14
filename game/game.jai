@@ -230,11 +230,9 @@ do_game :: () {
   gs.transition_percent = cast(float)(min(gs.transition_speed*(seconds_since_init() - gs.sim_start),1.0));
   rend_poke_sphere(*sphere1);
   rend_poke_sphere(*sphere2);
-  if gkey_pressed(#char "w")gs.current_choice += 1;
-  if gkey_pressed(#char "s")gs.current_choice -= 1;
-  if (gs.current_choice < 0)gs.current_choice = 3;
-  if (gs.current_choice > 3)gs.current_choice = 0;
-  rend_advantage_cube(.{}, .{1,1,1,1},xx gs.current_choice);
+  if gkey_pressed(#char "w")gs.current_choice = get_next_choice(gs.current_choice);
+  if gkey_pressed(#char "s")gs.current_choice = get_prev_choice(gs.current_choice);
+  //rend_advantage_cube(.{}, .{1,1,1,1},xx gs.current_choice);
   if gkey_pressed(#char " ") && abs(gs.transition_percent - 1.0) < 0.01 { //calc
     choice : PokeTypeAdvantage = xx gs.current_choice;
     actual : PokeTypeAdvantage = scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]);
@@ -246,6 +244,7 @@ do_game :: () {
     if correct then gsound_play(*gs.victory_sound, get_game_volume()); else gsound_play(*gs.defeat_sound, get_game_volume());
     game_set_scene(*gs, 1.0, gs.current_scene);
   }
+  rend_select_prompt();
   rend_fade_effect();
 }
 
@@ -384,6 +383,40 @@ gen_spheres :: () {
 
 get_game_volume :: () -> float {
   return (cast(float)gs.game_volume/100.0);
+}
+get_next_choice :: (choice : s32) -> s32 {
+  return (choice+1) % 4;
+}
+get_prev_choice :: (choice : s32) -> s32 {
+  return ifx (choice-1)< 0 then 3 else choice-1;
+}
+
+//--------------------------------------------------
+//--------------------------------------------------
+// SELECT PROMPT 
+//--------------------------------------------------
+//--------------------------------------------------
+rend_select_prompt :: () {
+  //render_basic_string :: (s : string, pos_x : float, pos_y : float, scale : float, alpha : float = 1.0A)
+  prompt_scale := 0.5;
+  prompt := sprint("%", cast(PokeTypeAdvantage)gs.current_choice);
+  defer free(prompt.data);
+  prompt_width, prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prompt,prompt_scale);
+  render_basic_string(prompt, xx (grc.window_ref.dim.x/2.0 - prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prompt_height/2.0), prompt_scale);
+
+  prev_prompt_scale := 0.4;
+  prev_prompt := sprint("%", cast(PokeTypeAdvantage)get_next_choice(gs.current_choice));
+  defer free(prev_prompt.data);
+  prev_prompt_width, prev_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,prev_prompt,prev_prompt_scale);
+  render_basic_string(prev_prompt, xx (grc.window_ref.dim.x/2.0 - prev_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - prev_prompt_height/2.0 - prompt_height), prev_prompt_scale, 0.4);
+ 
+  next_prompt_scale := 0.4;
+  next_prompt := sprint("%", cast(PokeTypeAdvantage)get_prev_choice(gs.current_choice));
+  defer free(next_prompt.data);
+  next_prompt_width, next_prompt_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,next_prompt,next_prompt_scale);
+  render_basic_string(next_prompt, xx (grc.window_ref.dim.x/2.0 - next_prompt_width/2.0), xx (grc.window_ref.dim.y/2.0 - next_prompt_height/2.0 + prompt_height), next_prompt_scale, 0.4);
+ 
+  gbatch_renderer_flush(*grc.br);
 }
 
  
