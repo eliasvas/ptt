@@ -1,5 +1,7 @@
 # ptt
 A Pokemon Type-Trainer game to learn how types work in pokemon games.
+In arcade mode, only accuracy is shown.
+In Training mode, the correct advantage is hinted.
 ## description
 Jai proof-of-concept simple game made *from scratch*. <br />
 Main goal is to have a tiny (**<10 MB**) single executable game to show. <br />

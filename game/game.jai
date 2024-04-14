@@ -39,6 +39,9 @@ GameState :: struct {
 
   bmusic_sound : gSound;
   bmusic_on : bool = true;
+
+  correct_choices : int = 0;
+  choice_count : int = 0;
 }
 victory_sound_bytes := #run read_entire_file("assets/sounds/victory.wav");
 defeat_sound_bytes := #run read_entire_file("assets/sounds/defeat.wav");
@@ -61,6 +64,7 @@ game_init :: (state : *GameState) {
   bmusic_sound.rel_volume = 0.5;
   gsound_play(*gs.bmusic_sound, get_game_volume(),true);
 }
+
 game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   using state;
   sim_start = seconds_since_init();
@@ -70,6 +74,11 @@ game_set_scene :: (state : *GameState, trans_sec : float, scene : GameScene){
   //wait trans_sec
   current_scene = scene;
   grc.main_cam.mode = .FIXED;
+  if scene != .TRAINING && scene != .ARCADE {
+    print("reset");
+    gs.correct_choices = 0;
+    gs.choice_count = 0;
+  }
 }
 
 game_update :: (state : *GameState) {
@@ -135,7 +144,6 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_row(*layout, 2);
   if gui_panel_layout_add_button(*layout, "Arcade") {
     gsound_play(*gs.click_sound, get_game_volume());
-    gs.transition_speed = 5;
     gs.transition_color = gVec4.{0.0,0.0,0.0,1.0};
     init_spheres();
     game_set_scene(state, 1.0, .ARCADE);
@@ -160,14 +168,13 @@ do_main_menu :: (state : *GameState) {
   gui_panel_layout_end(*main_menu_gui_panel, *layout);
 
 
-  fps_scale := 0.5;
-  fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
-  defer free(fps_counter.data);
-  fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
-  color : u32 = 0xFFFFFFFF;
-  color = (color << 20);
-  render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
-
+  // fps_scale := 0.5;
+  // fps_counter := sprint("%", formatFloat(1.0/ges.dt, width=1, trailing_width=0, zero_removal=.NO));
+  // defer free(fps_counter.data);
+  // fps_width, fps_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,fps_counter,fps_scale);
+  // color : u32 = 0xFFFFFFFF;
+  // color = (color << 20);
+  // render_basic_string(fps_counter, xx (grc.window_ref.dim.x - fps_width), 0, fps_scale);
   gbatch_renderer_flush(*grc.br);
 
 }
@@ -242,9 +249,14 @@ do_game :: () {
     gs.transition_color = ifx correct then gVec4.{0.0,1.0,0.0,0.2} else gVec4.{1.0,0.0,0.0,0.2};
     gen_spheres();
     if correct then gsound_play(*gs.victory_sound, get_game_volume()); else gsound_play(*gs.defeat_sound, get_game_volume());
+    if correct then gs.correct_choices+=1;
+    gs.choice_count +=1;
     game_set_scene(*gs, 1.0, gs.current_scene);
   }
   rend_select_prompt();
+  if gs.current_scene == .ARCADE{
+    rend_accuracy_stats();
+  }
   rend_fade_effect();
 }
 
@@ -323,7 +335,7 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   //ogl_image_bind(*ogl_ctx.def_fbo);
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.type]);
   prev_glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.prev_type]);
-  aspect := 800.0 / 600.0; 
+  aspect := grc.window_ref.dim.x / grc.window_ref.dim.y; 
   sphere_angle := (PI) + gs.transition_percent * (PI);
   model_mat := gmat4_mul(make_rotation_matrix( sphere_angle , .{0.0,0.0,1.0}) , gmat4_mul(make_translation_matrix(.{sphere.direction * 4,0,0}),make_rotation_matrix( sphere_angle, .{0.0,0.0,-1.0})));
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
@@ -429,8 +441,13 @@ rend_select_prompt :: () {
  
   gbatch_renderer_flush(*grc.br);
 }
-
- 
+rend_accuracy_stats :: () {
+  acc_scale := (0.5) * (grc.window_ref.dim.x/800.0);
+  acc_counter := sprint("acc: %", formatFloat(ifx gs.choice_count > 0 then 100.0*(gs.correct_choices/cast(float)gs.choice_count) else 100, width=1, trailing_width=0, zero_removal=.NO));
+  defer free(acc_counter.data);
+  acc_width, acc_height := gfont_atlas_get_dim_for_string(*grc.default_atlas,acc_counter,acc_scale);
+  render_basic_string(acc_counter, xx (grc.window_ref.dim.x - acc_width), 0, acc_scale);
+}
 //--------------------------------------------------
 //--------------------------------------------------
 // POKEMON STUFF 
