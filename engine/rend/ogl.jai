@@ -24,6 +24,7 @@ oglContext :: struct {
     //shader_program_3D : GLuint;
     sp3D : oglShaderObject;
     fade_sp : oglShaderObject;
+    full_sp : oglShaderObject;
 
     fade_vbo : oglBuf;
 
@@ -35,7 +36,7 @@ oglContext :: struct {
 
 
     debug_tex : oglImage;
-    def_fbo : oglImage;
+    def_rt : oglImage;
 
     MAX_TEX_SLOTS :: 8;
     MAX_ATTRIBS   :: 16;
@@ -62,14 +63,15 @@ ogl_init :: () {
 
     ogl_ctx.fade_vbo = ogl_make_buffer(.VERTEX, null, 0, 0);
     ogl_shader_object_init(*ogl_ctx.fade_sp, vert_fade_sp_source, frag_fade_sp_source);
+    ogl_shader_object_init(*ogl_ctx.full_sp, vert_full_sp_source, frag_full_sp_source);
     //debug texture initialization
     t_w : u32 = 400;
     t_h : u32 = 400;
     debug_tex := generate_debug_texture(t_w, t_h, 8, 8, 4);
     defer free(debug_tex.data);
     ogl_image_init(*ogl_ctx.debug_tex, debug_tex.data, t_w, t_h, oglImageFormat.RGBA8U);
-    //TODO: should this be resized on higher resolutions???
-    ogl_image_init(*ogl_ctx.def_fbo, null, 800, 600, oglImageFormat.RGBA32F);
+    //TODO: should this be resized on higher resolutions??? (yes)
+    ogl_image_init(*ogl_ctx.def_rt, null, xx grc.window_ref.dim.x, xx grc.window_ref.dim.y, oglImageFormat.RGBA32F);
 
     ogl_clear_all();
 }
@@ -171,8 +173,7 @@ ogl_shader_set_dynamic_state :: (state : oglShaderDynamicState) {
 //----------------------------------------------------------------------------
 oglImageType :: enum {
     TEXTURE;
-    RT_DS;
-    RT_COL;
+    RT;
 };
 
 oglImageFormat :: enum {
@@ -181,20 +182,28 @@ oglImageFormat :: enum {
 }
 oglImage :: struct {
     handle : GLuint;
-    attachments : [4] GLuint; // optional: used only for FBOs
     width : u32;
     height: u32;
     format : oglImageFormat;
+    type : oglImageType;
+    //optional: only configured for RTs (RT_COL -> colors) (RT_DS -> rbo) 
+    attachments : [4] GLuint;
 }
 
+//TODO: in case of RT, should we bind it first
 ogl_image_clear:: (img : *oglImage) {
     using img;
+    ogl_rt_bind(img);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    ogl_rt_bind(null);
 }
-ogl_image_bind :: (img : *oglImage) {
+
+ogl_rt_bind :: (img : *oglImage) {
     using img;
     if (img == null) then glBindFramebuffer(GL_FRAMEBUFFER, 0); else glBindFramebuffer(GL_FRAMEBUFFER, handle);
 }
+
 //TODO: should a 'type' be introduced, switching on the format is wrong
 ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fmt : oglImageFormat, is_font : bool = false) -> bool {
     using img;
@@ -203,6 +212,7 @@ ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fm
     format = fmt;
     if format == {
         case .RGBA8U; // normal textures
+            type = .TEXTURE;
             glGenTextures(1, *handle);
             glBindTexture(GL_TEXTURE_2D, handle);
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: is this really needed? its used only for font rendering random access
@@ -227,6 +237,7 @@ ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fm
                 glGenerateMipmap(GL_TEXTURE_2D);
             }
         case .RGBA32F; // framebuffers
+            type = .RT;
             glGenFramebuffers(1, *handle);
             glBindFramebuffer(GL_FRAMEBUFFER, handle);
             
@@ -253,19 +264,34 @@ ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fm
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, attachments[2], 0);
+
+            rbo : GLuint;
+            glGenRenderbuffers(1, *rbo);
+            glBindRenderbuffer(GL_RENDERBUFFER, rbo); 
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, tex_w, tex_h);  
+            glBindRenderbuffer(GL_RENDERBUFFER, 0);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+            assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
             
             // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-            attachments_gl : [3] u32 = u32.[ GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 ];
-            glDrawBuffers(3, *attachments_gl[0]);
+            //attachments_gl : [3] u32 = u32.[ GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 ];
+            //glDrawBuffers(3, *attachments_gl[0]);
         case;
             assert(false);
         }
     return (handle != 0);
 }
 
-ogl_bind_image_to_texture_slot :: (img : *oglImage, tex_slot : u32) {
+ogl_bind_image_to_texture_slot :: (img : *oglImage, tex_slot : u32, attachment : u32 = 0) {
+    using img;
     glActiveTexture(GL_TEXTURE0 + tex_slot);
-    glBindTexture(GL_TEXTURE_2D, img.handle);
+    if type == {
+        case .RT;
+            glBindTexture(GL_TEXTURE_2D, attachments[attachment]);
+        case .TEXTURE;
+            glBindTexture(GL_TEXTURE_2D, handle);
+    }
 }
 
 
@@ -584,6 +610,26 @@ void main()
 }
 END
 
+
+vert_full_sp_source :: #string END
+#version 330 core
+out vec2 outUV;
+void main() 
+{
+    outUV = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    gl_Position = vec4(outUV * 2.0f + -1.0f, 0.0f, 1.0f);
+}
+END;
+frag_full_sp_source:: #string END
+#version 330 core
+out vec4 FragColor;
+uniform sampler2D tex;
+in vec2 outUV; //maybe this can become some onscreen effect
+void main()
+{
+    FragColor = texture(tex, outUV);
+}
+END
 
 
 vert_fade_sp_source :: #string END

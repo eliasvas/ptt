@@ -78,6 +78,7 @@ game_update :: (state : *GameState) {
   using state;
   ges_update();
   gwin_update(*window);
+  ogl_image_clear(*ogl_ctx.def_rt);
   gcam_update(*grc.main_cam,xx ges.dt);
 
   if gkey_down(27) then game_set_scene(state, 1.0, .MAIN_MENU);
@@ -255,6 +256,7 @@ do_game :: () {
   if gs.current_scene == .ARCADE{
     rend_accuracy_stats();
   }
+  rend_def_fullscreen();
   rend_fade_effect();
 }
 
@@ -275,8 +277,22 @@ scalar_to_poke_type_advantage :: (scalar : float) -> PokeTypeAdvantage {
   return res;
 }
 
+rend_def_fullscreen :: () {
+  ogl_clear_all();
+  ogl_shader_set_dynamic_state(oglShaderDynamicState.BLENDING);
+  ogl_bind_vertex_buffer(*ogl_ctx.fade_vbo); //its ok, its empty
+  ogl_bind_shader_object(*ogl_ctx.full_sp);
+  ogl_shader_object_set_uniform(*ogl_ctx.fade_sp, "color", oglShaderDataType.VEC4, xx *gs.transition_color);
+  ogl_bind_image_to_texture_slot(*ogl_ctx.def_rt, 0);
+  ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.full_sp, "tex", 0);
+
+  ogl_draw(oglPrimitive.TRIANGLES, 0, xx 3);
+}
+
+
 rend_fade_effect :: () {
   ogl_clear_all();
+  ogl_shader_set_dynamic_state(oglShaderDynamicState.DEPTH_DISABLED);
   ogl_bind_vertex_buffer(*ogl_ctx.fade_vbo);
   ogl_bind_shader_object(*ogl_ctx.fade_sp);
   ogl_shader_object_set_uniform(*ogl_ctx.fade_sp, "delta", oglShaderDataType.FLOAT, xx *gs.transition_percent);
@@ -330,7 +346,8 @@ rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {
 
 rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_clear_all();
-  //ogl_image_bind(*ogl_ctx.def_fbo);
+  //ogl_rt_bind(null);
+  ogl_rt_bind(*ogl_ctx.def_rt); //the spheres are drawn into the deferred RT
   glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.type]);
   prev_glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, type_initials[xx sphere.prev_type]);
   aspect := grc.window_ref.dim.x / grc.window_ref.dim.y; 

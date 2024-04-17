@@ -100,6 +100,7 @@ gwin_update :: (win : *gWin) {
             win.dim.x = xx ww;
             win.dim.y = xx wh;
             print("New window size: [%,%]\n", win.dim.x, win.dim.y);
+            ogl_image_init(*ogl_ctx.def_rt, null, xx grc.window_ref.dim.x, xx grc.window_ref.dim.y, oglImageFormat.RGBA32F);
         }
     }
     gwin_resize_if_necessary(win);
