@@ -265,6 +265,9 @@ ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fm
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, attachments[2], 0);
 
+            attachments_gl : [3] u32 = u32.[ GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 ];
+            glDrawBuffers(3, *attachments_gl[0]);
+
             rbo : GLuint;
             glGenRenderbuffers(1, *rbo);
             glBindRenderbuffer(GL_RENDERBUFFER, rbo); 
@@ -273,15 +276,22 @@ ogl_image_init :: (img : *oglImage, tex_data : *u8, tex_w : u32, tex_h : u32, fm
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
             assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-            
-            // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-            //attachments_gl : [3] u32 = u32.[ GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 ];
-            //glDrawBuffers(3, *attachments_gl[0]);
         case;
             assert(false);
         }
     return (handle != 0);
 }
+
+ogl_image_deinit :: (img : *oglImage) {
+    using img;
+    if type == {
+        case .RT;
+            glDeleteTextures(1,*handle);
+        case .TEXTURE;
+            glDeleteFramebuffers(1,*handle);
+    }
+}
+
 
 ogl_bind_image_to_texture_slot :: (img : *oglImage, tex_slot : u32, attachment : u32 = 0) {
     using img;
@@ -562,7 +572,9 @@ void main()
 END;
 fragment_shader_3D_source :: #string END
 #version 330 core
-out vec4 FragColor;
+layout (location = 0) out vec4 gPosition; //only first 3 used
+layout (location = 1) out vec4 gNormal; //only first 3 used
+layout (location = 2) out vec4 gAlbedoSpec;
 in vec2 tc;
 in vec3 world_pos;
 in vec3 aNormal;
@@ -606,7 +618,9 @@ void main()
     vec3 diffuse = diff * lightColor;
     vec3 result = (ambient + diffuse) * (col.xyz * delta + prev_col.xyz * (1.0 - delta)) * col_tex.xyz;
 
-    FragColor = vec4(result, 1.0);
+    gPosition = vec4(diffuse, 1.0);
+    gNormal = vec4(norm, 1.0);
+    gAlbedoSpec = vec4(result, 1.0);
 }
 END
 
@@ -623,11 +637,30 @@ END;
 frag_full_sp_source:: #string END
 #version 330 core
 out vec4 FragColor;
-uniform sampler2D tex;
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+uniform sampler2D gAlbedoSpec;
+uniform vec3 lightPos; //for toon shading 
 in vec2 outUV; //maybe this can become some onscreen effect
+float fraction = 7.01;
 void main()
 {
-    FragColor = texture(tex, outUV);
+    FragColor = texture(gAlbedoSpec, outUV);
+    float intensity;
+    vec4 color_mod;
+    vec3 vertLightDir = normalize(texture(gPosition, outUV).xyz - lightPos); 
+    intensity = max(0.0, dot(vertLightDir, texture(gNormal, outUV).xyz));
+
+    if (intensity > pow(0.95, fraction)) {
+        color_mod = vec4(vec3(1.0), 1.0);
+    } else if (intensity > pow(0.5, fraction)) {
+        color_mod = vec4(vec3(0.6), 1.0);
+    } else if (intensity > pow(0.25, fraction)) {
+        color_mod = vec4(vec3(0.4), 1.0);
+    } else {
+        color_mod = vec4(vec3(0.2), 1.0);
+    }
+    FragColor = color_mod * texture(gAlbedoSpec,outUV);
 }
 END
 

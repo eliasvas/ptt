@@ -282,8 +282,10 @@ rend_def_fullscreen :: () {
   ogl_shader_set_dynamic_state(oglShaderDynamicState.BLENDING);
   ogl_bind_vertex_buffer(*ogl_ctx.fade_vbo); //its ok, its empty
   ogl_bind_shader_object(*ogl_ctx.full_sp);
-  ogl_shader_object_set_uniform(*ogl_ctx.fade_sp, "color", oglShaderDataType.VEC4, xx *gs.transition_color);
-  ogl_bind_image_to_texture_slot(*ogl_ctx.def_rt, 0);
+  lp : gVec3 = .{-5,5,3};
+  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
+  ogl_shader_object_set_uniform(*ogl_ctx.fade_sp, "gAlbedoSpec", oglShaderDataType.VEC4, xx *gs.transition_color);
+  ogl_bind_image_to_texture_slot(*ogl_ctx.def_rt, 0, 2);
   ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.full_sp, "tex", 0);
 
   ogl_draw(oglPrimitive.TRIANGLES, 0, xx 3);
@@ -334,8 +336,6 @@ rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "delta", oglShaderDataType.FLOAT, xx *gs.transition_percent);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_col", oglShaderDataType.VEC4, xx *col);
-  lp : gVec3 = .{-5,5,3};
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "lightPos", oglShaderDataType.VEC3, xx *lp);
   ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
   ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
   ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
