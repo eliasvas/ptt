@@ -15,6 +15,7 @@ GameScene :: enum {
 
 GameState :: struct {
   current_scene : GameScene = .MAIN_MENU;
+  poke_tex : oglImage;
   scalar_adv : bool = false;
   game_volume : int = 80;
   window : gWin;
@@ -40,6 +41,7 @@ victory_sound_bytes := #run read_entire_file("assets/sounds/victory.wav");
 defeat_sound_bytes := #run read_entire_file("assets/sounds/defeat.wav");
 click_sound_bytes := #run read_entire_file("assets/sounds/click.wav");
 bmusic_sound_bytes := #run read_entire_file("assets/sounds/bmusic.ogg");
+alltypes_tex_data := #run read_entire_file("assets/types/alltypes.png");
 
 game_init :: (state : *GameState) {
   using state;
@@ -48,6 +50,9 @@ game_init :: (state : *GameState) {
   rend_dim : gVec2 = .{800,600};
   window = gwin_create("Type Trainer ALPHA",xx win_dim.x, xx win_dim.y, GWIN_OPT.RESIZABLE | GWIN_OPT.VISIBLE); 
   grend_init(*window);
+  poke_ttex := generate_texture_from_data(alltypes_tex_data.data, alltypes_tex_data.count);
+  //defer free(poke_tex.data);
+  ogl_image_init(*poke_tex, poke_ttex.data, xx poke_ttex.dim.x, xx poke_ttex.dim.y, oglImageFormat.RGBA8U);
   gsound_init();
   gsound_load_from_bytes(*victory_sound,"victory", victory_sound_bytes);
   gsound_load_from_bytes(*defeat_sound,"defeat", defeat_sound_bytes);
@@ -239,7 +244,7 @@ do_game :: () {
     correct : bool = (choice == actual);
     //print("choice=[%], actual=[%], status=[%]\n", choice, actual, ifx correct then "correct!" else "wrong!");
     print("% -[%]-> %\n", sphere2.type, scalar_to_poke_type_advantage(type_chart[sphere2.type][sphere1.type]), sphere1.type);
-    gs.transition_color = ifx correct then gVec4.{0.0,1.0,0.0,0.2} else gVec4.{1.0,0.0,0.0,0.2};
+    gs.transition_color = ifx correct then gVec4.{0.0,1.0,0.0,0.3} else gVec4.{1.0,0.0,0.0,0.3};
     gen_spheres();
     if correct then gsound_play(*gs.victory_sound, get_game_volume()); else gsound_play(*gs.defeat_sound, get_game_volume());
     if correct then gs.correct_choices+=1;
@@ -314,20 +319,20 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   view_mat := gcam_make_lookat_matrix(*grc.main_cam);
   proj_mat := make_perspective_matrix(45.0, aspect, 0.001, 50.0);
 
-  //ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
-  //ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
-  ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
+  ogl_bind_index_buffer(*ogl_ctx.sphere_ibo);
+  ogl_bind_vertex_buffer(*ogl_ctx.sphere_vbo);
+  //ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
   ogl_bind_shader_object(*ogl_ctx.sp3D);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-  tc_start : gVec2 = .{cast(float)(64.0 * sphere.type / ogl_ctx.poke_tex.width), 0.0};
+  tc_start : gVec2 = .{cast(float)(64.0 * sphere.type / gs.poke_tex.width), 0.0};
   tc_end := tc_start;
-  tc_end += .{cast(float)((64.0)/ ogl_ctx.poke_tex.width), 1.0};
+  tc_end += .{cast(float)((64.0)/ gs.poke_tex.width), 1.0};
 
-  prev_tc_start : gVec2 = .{cast(float)(64.0 * sphere.prev_type / ogl_ctx.poke_tex.width), 0.0};
+  prev_tc_start : gVec2 = .{cast(float)(64.0 * sphere.prev_type / gs.poke_tex.width), 0.0};
   prev_tc_end := prev_tc_start;
-  prev_tc_end += .{cast(float)((64.0)/ ogl_ctx.poke_tex.width), 1.0};
+  prev_tc_end += .{cast(float)((64.0)/ gs.poke_tex.width), 1.0};
 
 
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
@@ -345,10 +350,10 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
 
   //grc: gRendContext;
   //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
-  ogl_bind_image_to_texture_slot(*ogl_ctx.poke_tex, 0);
+  ogl_bind_image_to_texture_slot(*gs.poke_tex, 0);
   ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
-  //ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
-  ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
+  ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
+  //ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
 
   ogl_clear_all();
   //rend_advantage_cube(lp, .{1,1,1,1});

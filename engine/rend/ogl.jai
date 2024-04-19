@@ -17,7 +17,8 @@ Because of its OpenGL 3.3 compliance, this is a GREAT compatibility layer
 */
 
 cube_verts,cube_idx := #run generate_cube();
-sphere_verts,sphere_idx := #run generate_sphere(1,40,40,true);
+sphere_verts_old,sphere_idx_old := #run generate_sphere(1,40,40,true);
+sphere_verts,sphere_idx := #run generate_cube_sphere(1.4,true);
 
 oglContext :: struct {
     vao : GLuint;
@@ -37,7 +38,6 @@ oglContext :: struct {
 
 
     debug_tex : oglImage;
-    poke_tex : oglImage;
     def_rt : oglImage;
 
     MAX_TEX_SLOTS :: 8;
@@ -49,7 +49,6 @@ oglContext :: struct {
 //and maybe the default fbo
 ogl_ctx : oglContext;
 
-alltypes_tex_data := #run read_entire_file("assets/types/alltypes.png");
 
 ogl_init :: () {
     glGenVertexArrays(1, *ogl_ctx.vao);
@@ -74,11 +73,6 @@ ogl_init :: () {
     debug_tex := generate_debug_texture(t_w, t_h, 8, 8, 4);
     defer free(debug_tex.data);
     ogl_image_init(*ogl_ctx.debug_tex, debug_tex.data, t_w, t_h, oglImageFormat.RGBA8U);
-
-    poke_tex := generate_texture_from_data(alltypes_tex_data.data, alltypes_tex_data.count);
-    //defer free(poke_tex.data);
-    ogl_image_init(*ogl_ctx.poke_tex, poke_tex.data, xx poke_tex.dim.x, xx poke_tex.dim.y, oglImageFormat.RGBA8U);
-
     //TODO: should this be resized on higher resolutions??? (yes)
     ogl_image_init(*ogl_ctx.def_rt, null, xx grc.window_ref.dim.x, xx grc.window_ref.dim.y, oglImageFormat.RGBA32F);
 
@@ -118,7 +112,7 @@ generate_texture_from_data :: (data : *u8, count : s64) -> gTextureData {
     w : s32;
     h : s32;
     chan : s32;
-    stbi_set_flip_vertically_on_load(1);
+    //stbi_set_flip_vertically_on_load(1);
     image_data := stbi_load_from_memory(data, xx count, *w, *h, *chan, 0);
     tex_data.dim.x = cast(float)w;
     tex_data.dim.y = cast(float)h;
@@ -619,7 +613,7 @@ uniform vec3 lightPos;
 void main()
 {
     //vec2 new_tc = vec2(tc.x, tc.y) * 3 - 1;
-    vec2 neww_tc = tc_start + tc * (tc_end - tc_start);
+    vec2 neww_tc = tc_start + (tc) * (tc_end - tc_start);
     vec3 col_tex = texture(tex, neww_tc).rgb * vec3(1,1,1);
 
     vec2 neww_tc_prev = prev_tc_start + tc * (prev_tc_end - prev_tc_start);
@@ -708,6 +702,7 @@ frag_fade_sp_source:: #string END
 #version 330 core
 out vec4 FragColor;
 in vec2 outUV; //maybe this can become some onscreen effect
+uniform sampler2D tex;
 uniform vec4 color;
 uniform float delta;
 void main()
@@ -715,18 +710,3 @@ void main()
     FragColor = color * (1.0-delta);
 }
 END
-
-//This pixelization shader should probably be in the last post-proc shader (currently the fade effect)
-// out vec4 FinalColor;
-// in vec2 FragUV;
-// uniform sampler2D Texture;
-
-// void main()
-// {
-//         float Pixels = 512.0;
-//         float dx = 15.0 * (1.0 / Pixels);
-//         float dy = 10.0 * (1.0 / Pixels);
-//         vec2 Coord = vec2(dx * floor(FragUV.x / dx),
-//                           dy * floor(FragUV.y / dy));
-//         FinalColor = texture(Texture, Coord);
-// }
