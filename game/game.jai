@@ -302,48 +302,6 @@ rend_fade_effect :: () {
   ogl_draw(oglPrimitive.TRIANGLES, 0, xx 3);
 }
 
-rend_advantage_cube :: (pos : gVec3, col : gVec4, adv : PokeTypeAdvantage) {
-  ogl_clear_all();
-  model_mat := make_translation_matrix(pos);
-  view_mat := gcam_make_lookat_matrix(*grc.main_cam);
-  proj_mat := make_perspective_matrix(45.0, 800.0/600.0, 0.001, 50.0);
-
-  c : u8 = #char "0";
-  if adv == .NoEffect {
-    c = #char "0";
-  }else if adv == .NotVeryEffective {
-    c = #char "5";
-  }else if adv == .Normal{
-    c = #char "1";
-  }else if adv == .SuperEffective {
-    c = #char "2";
-  }
-
-  glyph : gFontGlyph = gfont_atlas_get_glyph_for_character(*grc.default_atlas, c);
-
-  ogl_bind_vertex_buffer(*ogl_ctx.cube_vbo);
-  ogl_bind_shader_object(*ogl_ctx.sp3D);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-  tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
-  tc_end := tc_start;
-  tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_start", oglShaderDataType.VEC2, xx *tc_start);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_end", oglShaderDataType.VEC2, xx *tc_end);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "delta", oglShaderDataType.FLOAT, xx *gs.transition_percent);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "col", oglShaderDataType.VEC4, xx *col);
-  ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_col", oglShaderDataType.VEC4, xx *col);
-  ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
-  ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
-  ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);
-
-  ogl_clear_all();
-}
-
-
 rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_clear_all();
   //ogl_rt_bind(null);
@@ -363,13 +321,15 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "model", oglShaderDataType.MAT4, xx *model_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "view", oglShaderDataType.MAT4, xx *view_mat);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "proj", oglShaderDataType.MAT4, xx *proj_mat);
-  tc_start : gVec2 = .{cast(float)glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
+  tc_start : gVec2 = .{cast(float)(64.0 * sphere.type / ogl_ctx.poke_tex.width), 0.0};
   tc_end := tc_start;
-  tc_end += .{cast(float)glyph.size_x / grc.default_atlas.size_x, cast(float)glyph.size_y / grc.default_atlas.size_y};
+  tc_end += .{cast(float)((64.0)/ ogl_ctx.poke_tex.width), 1.0};
 
-  prev_tc_start : gVec2 = .{cast(float)prev_glyph.tc_x / grc.default_atlas.size_x, cast(float)0.0 / grc.default_atlas.size_y};
+  prev_tc_start : gVec2 = .{cast(float)(64.0 * sphere.prev_type / ogl_ctx.poke_tex.width), 0.0};
   prev_tc_end := prev_tc_start;
-  prev_tc_end += .{cast(float)prev_glyph.size_x / grc.default_atlas.size_x, cast(float)prev_glyph.size_y / grc.default_atlas.size_y};
+  prev_tc_end += .{cast(float)((64.0)/ ogl_ctx.poke_tex.width), 1.0};
+
+
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_start", oglShaderDataType.VEC2, xx *tc_start);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "tc_end", oglShaderDataType.VEC2, xx *tc_end);
   ogl_shader_object_set_uniform(*ogl_ctx.sp3D, "prev_tc_start", oglShaderDataType.VEC2, xx *prev_tc_start);
@@ -385,7 +345,7 @@ rend_poke_sphere :: (sphere : *PKMNTypeSphere) {
 
   //grc: gRendContext;
   //ogl_bind_image_to_texture_slot(*ogl_ctx.debug_tex, 0);
-  ogl_bind_image_to_texture_slot(*grc.font_tex, 0);
+  ogl_bind_image_to_texture_slot(*ogl_ctx.poke_tex, 0);
   ogl_shader_object_bind_sampler_to_slot(*ogl_ctx.sp3D, "tex", 0);
   //ogl_draw_indexed(oglPrimitive.TRIANGLES, sphere_idx.count);
   ogl_draw(oglPrimitive.TRIANGLES, 0, xx ogl_ctx.cube_vbo.count);

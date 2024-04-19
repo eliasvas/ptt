@@ -1,5 +1,6 @@
 #import "GL";
 #import "SDL";
+#import "stb_image";
 
 //based on this: https://floooh.github.io/2020/02/17/sokol-gfx-backend-tour-gl.html
 
@@ -36,6 +37,7 @@ oglContext :: struct {
 
 
     debug_tex : oglImage;
+    poke_tex : oglImage;
     def_rt : oglImage;
 
     MAX_TEX_SLOTS :: 8;
@@ -46,6 +48,8 @@ oglContext :: struct {
 //in the future it should have only a global vao (for implementation)
 //and maybe the default fbo
 ogl_ctx : oglContext;
+
+alltypes_tex_data := #run read_entire_file("assets/types/alltypes.png");
 
 ogl_init :: () {
     glGenVertexArrays(1, *ogl_ctx.vao);
@@ -70,6 +74,11 @@ ogl_init :: () {
     debug_tex := generate_debug_texture(t_w, t_h, 8, 8, 4);
     defer free(debug_tex.data);
     ogl_image_init(*ogl_ctx.debug_tex, debug_tex.data, t_w, t_h, oglImageFormat.RGBA8U);
+
+    poke_tex := generate_texture_from_data(alltypes_tex_data.data, alltypes_tex_data.count);
+    //defer free(poke_tex.data);
+    ogl_image_init(*ogl_ctx.poke_tex, poke_tex.data, xx poke_tex.dim.x, xx poke_tex.dim.y, oglImageFormat.RGBA8U);
+
     //TODO: should this be resized on higher resolutions??? (yes)
     ogl_image_init(*ogl_ctx.def_rt, null, xx grc.window_ref.dim.x, xx grc.window_ref.dim.y, oglImageFormat.RGBA32F);
 
@@ -103,6 +112,21 @@ generate_debug_texture :: (width : u32, height : u32, x_tiles : u32, y_tiles : u
     }
     return tex_data;
 }
+
+generate_texture_from_data :: (data : *u8, count : s64) -> gTextureData {
+    tex_data : gTextureData;
+    w : s32;
+    h : s32;
+    chan : s32;
+    stbi_set_flip_vertically_on_load(1);
+    image_data := stbi_load_from_memory(data, xx count, *w, *h, *chan, 0);
+    tex_data.dim.x = cast(float)w;
+    tex_data.dim.y = cast(float)h;
+    tex_data.cnum = xx chan;
+    tex_data.data = xx image_data;
+    return tex_data;
+}
+
 
 oglBufType  :: enum {
     VERTEX;
@@ -645,6 +669,12 @@ in vec2 outUV; //maybe this can become some onscreen effect
 float fraction = 7.01;
 void main()
 {
+    float Pixels = max(textureSize(gAlbedoSpec,0).x, textureSize(gAlbedoSpec,0).y) *3.0;
+    float dx = 15.0 * (1.0 / Pixels);
+    float dy = 10.0 * (1.0 / Pixels);
+    vec2 Coord = vec2(dx * floor(outUV.x / dx), dy * floor(outUV.y / dy));
+
+
     FragColor = texture(gAlbedoSpec, outUV);
     float intensity;
     vec4 color_mod;
@@ -660,7 +690,7 @@ void main()
     } else {
         color_mod = vec4(vec3(0.2), 1.0);
     }
-    FragColor = color_mod * texture(gAlbedoSpec,outUV);
+    //FragColor = color_mod * texture(gAlbedoSpec,outUV);
 }
 END
 
